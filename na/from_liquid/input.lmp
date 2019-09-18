@@ -20,7 +20,7 @@ read_restart restart.liq
 
 # ---------- Interatomic Potential --------------------- 
 pair_style 	eam/fs
-pair_coeff 	* * Na_MendelevM_2014.eam.fs Na
+pair_coeff 	* * ../Na_MendelevM_2014.eam.fs Na
 
 # ---------- Simulation Settings --------------------- 
 variable temperature equal 350
