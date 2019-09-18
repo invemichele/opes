@@ -1,0 +1,18 @@
+nstep             5000000
+tstep             0.005
+temperature       1.0
+friction          10.0
+random_seed       76243 17021 48174 28613 33604 65900 62456 22271 47992 86813 
+plumed_input      plumed.dat
+dimension         2
+replicas          10
+basis_functions_1 BF_POWERS ORDER=4 MINIMUM=-3.0 MAXIMUM=+3.0
+basis_functions_2 BF_POWERS ORDER=4 MINIMUM=-3.0 MAXIMUM=+3.0
+input_coeffs       md_potential2.dat
+initial_position   0.410677,-1.72661 0.562916,-1.54536 0.407318,-1.70468 0.57704,-1.75733 0.457611,-1.82557 0.303102,-1.91219 0.61317,-1.71666 0.316093,-1.92186 0.559429,-1.70823 0.630783,-1.75588 
+output_potential        out_potential.data
+output_potential_grid   150
+output_histogram        histogram.data
+
+# Potential obtained from:
+# 2.01824*x**4 -2.85317*x**3*y +5.89058*x**2*y**2 -8.33631*x**2 +2.85317*x*y**3 +1.35688*x +2.01824*y**4 -9.66369*y**2 +1.5*y +17.07

@@ -1,0 +1,25 @@
+# vim:ft=plumed
+LOAD FILE=../OPES.cpp
+
+phi: TORSION ATOMS=5,7,9,15
+psi: TORSION ATOMS=7,9,15,17
+
+OPES ...
+  LABEL=opes
+  MODE=EXPLORE
+  ARG=phi,psi
+  FILE=Kernels.data
+  TEMP=300.0
+  PACE=500
+  SIGMA=0.15,0.15
+  BARRIER=50
+  BIASFACTOR=10
+  PROB_WFILE=Prob.data
+  PROB_WSTRIDE=10000
+  STORE_PROB
+... OPES
+
+PRINT FMT=%g STRIDE=500 FILE=Colvar.data ARG=phi,psi,opes.*
+
+ENDPLUMED
+

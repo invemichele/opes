@@ -1,0 +1,24 @@
+# vim:ft=plumed
+
+phi: TORSION ATOMS=5,7,9,15
+psi: TORSION ATOMS=7,9,15,17
+
+METAD ...
+  LABEL=metad
+  ARG=phi,psi
+  FILE=Hills.data
+  TEMP=300.0
+  PACE=500
+  HEIGHT=1.2
+  SIGMA=0.35,0.35
+  BIASFACTOR=10.0
+  GRID_MIN=-pi,-pi
+  GRID_MAX=pi,pi
+  GRID_BIN=100,100
+  CALC_MAX_BIAS
+  CALC_RCT
+... METAD
+
+PRINT FMT=%g STRIDE=500 FILE=Colvar.data ARG=phi,psi,metad.bias,metad.rct,metad.maxbias
+
+ENDPLUMED

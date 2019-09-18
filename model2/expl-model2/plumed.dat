@@ -1,0 +1,21 @@
+# vim:ft=plumed
+LOAD FILE=../../OPES.cpp
+UNITS NATURAL
+
+p: POSITION ATOM=1
+
+OPES ...
+  LABEL=opes
+  ARG=p.x
+  MODE=EXPLORE
+  FILE=Kernels.data
+  PACE=500
+  SIGMA=0.172198
+  BARRIER=10
+... OPES
+
+PRINT FMT=%g STRIDE=500 FILE=Colvar.data ARG=p.x,p.y,opes.*
+
+ENDPLUMED
+
+0-run:

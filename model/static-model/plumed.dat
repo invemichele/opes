@@ -1,0 +1,17 @@
+# vim:ft=plumed
+UNITS NATURAL
+
+p: POSITION ATOM=1
+
+EXTERNAL ...
+  LABEL=external 
+  ARG=p.x 
+  FILE=modelFES.grid 
+  SCALE=-0.9
+... EXTERNAL
+
+PRINT FMT=%g STRIDE=500 FILE=Colvar.data ARG=p.x,p.y,external.*
+
+ENDPLUMED
+
+0-run:

@@ -1,0 +1,20 @@
+nstep             20000000
+tstep             0.005
+temperature       1.0
+friction          10.0
+random_seed       39160 42065 98891 54780 20631 99950 32019 78279 62057 32825 
+plumed_input      plumed.dat
+dimension         2
+replicas          10
+basis_functions_1 BF_POWERS ORDER=4 MINIMUM=-3.0 MAXIMUM=+3.0
+basis_functions_2 BF_POWERS ORDER=4 MINIMUM=-3.0 MAXIMUM=+3.0
+input_coeffs       md_potential.dat
+initial_position   -2.13677,0.730956 -1.89061,0.674183 -1.97216,0.747187 -1.68857,0.740023 -2.0955,0.826589 -1.85278,0.841176 -1.85009,0.909208 -1.65844,0.706248 -2.04051,0.711381 -1.74095,1.04592 
+output_potential        out_potential.data
+output_potential_grid   150
+output_histogram        histogram.data
+
+# Potential obtained from:
+# t=-pi/4*0.6;c=cos(t);s=sin(t);sp [-3:3][-3:3][0:20]2*(c*x-s*y)**4+2*(s*x+c*y)**4-4.0*(c*x-s*y)**2-8.0*(s*x+c*y)**2+4*(c*x-s*y)*(s*x+c*y)+1.6*(c*x-s*y)+0.2*(s*x+c*y)+19 w pm3d
+# 1.34549*x**4 +1.90211*x**3*y +3.92705*x**2*y**2 -6.44246*x**2 -1.90211*x*y**3 +5.58721*x*y +1.33481*x +1.34549*y**4 -5.55754*y**2 +0.904586*y +19 
+# shuf unb.Colvar.data |tail -50 |awk '{printf $2","$3" "}END{printf "\n"}'
