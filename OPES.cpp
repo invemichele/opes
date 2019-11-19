@@ -324,31 +324,32 @@ OPES::OPES(const ActionOptions&ao)
     if(ifile.FileExist(kernelsFileName))
     {
       ifile.open(kernelsFileName);
-      log.printf("  Restarting from: %s\n",kernelsFileName.c_str());
+      log.printf("  RESTART - make sure all used options are compatible\n");
+      log.printf("    Restarting from: %s\n",kernelsFileName.c_str());
       std::string old_mode;
       ifile.scanField("mode",old_mode);
       plumed_massert(old_mode==mode,"Cannot restart directly form a different MODE. Kernels file should be properly prepared");
       double old_biasfactor;
       ifile.scanField("biasfactor",old_biasfactor);
       if(old_biasfactor!=biasfactor_)
-        log.printf("+++ WARNING +++ previous bias factor was %g while now it is %g. diff = %g\n",old_biasfactor,biasfactor_,biasfactor_-old_biasfactor);
+        log.printf(" +++ WARNING +++ previous bias factor was %g while now it is %g. diff = %g\n",old_biasfactor,biasfactor_,biasfactor_-old_biasfactor);
       if(exploration_)
         plumed_massert(old_biasfactor==biasfactor_,"in MODE=EXPLORE restarting form different bias factor is not supported");
       double old_epsilon;
       ifile.scanField("epsilon",old_epsilon);
       if(old_epsilon!=epsilon_)
-        log.printf("+++ WARNING +++ previous epsilon was %g while now it is %g. diff = %g\n",old_epsilon,epsilon_,epsilon_-old_epsilon);
+        log.printf(" +++ WARNING +++ previous epsilon was %g while now it is %g. diff = %g\n",old_epsilon,epsilon_,epsilon_-old_epsilon);
       double old_cutoff;
       ifile.scanField("kernel_cutoff",old_cutoff);
       if(old_cutoff!=cutoff)
-        log.printf("+++ WARNING +++ previous kernel_cutoff was %g while now it is %g. diff = %g\n",old_cutoff,cutoff,cutoff-old_cutoff);
+        log.printf(" +++ WARNING +++ previous kernel_cutoff was %g while now it is %g. diff = %g\n",old_cutoff,cutoff,cutoff-old_cutoff);
       double old_threshold;
       const double threshold=sqrt(threshold2_);
       ifile.scanField("compression_threshold",old_threshold);
       if(old_threshold!=threshold)
-        log.printf("+++ WARNING +++ previous compression_threshold was %g while now it is %g. diff = %g\n",old_threshold,threshold,threshold-old_threshold);
+        log.printf(" +++ WARNING +++ previous compression_threshold was %g while now it is %g. diff = %g\n",old_threshold,threshold,threshold-old_threshold);
       for(unsigned i=0; i<ncv_; i++)
-      { //TODO add extra check on arg name as in MetaD
+      {
         if(getPntrToArgument(i)->isPeriodic())
         {
           std::string arg_min,arg_max;
@@ -360,6 +361,7 @@ OPES::OPES(const ActionOptions&ao)
           plumed_massert(file_max==arg_max,"mismatch between restart and ARG periodicity");
         }
       }
+      ifile.allowIgnoredFields(); //this allows for multiple restart, but without checking for consistency between them!
       double time;
       while(ifile.scanField("time",time))
       {
@@ -386,13 +388,15 @@ OPES::OPES(const ActionOptions&ao)
       if(exploration_)
         prob_norm_=counter_;
       log.printf("    A total of %d kernels where read, and compressed to %d\n",counter_-1,kernels_.size());
-      //sync all walkers and treads. Not sure is mandatory but is no harm
-      comm.Barrier();
-      if(comm.Get_rank()==0)
-        multi_sim_comm.Barrier();
+      ifile.reset(false);
+      ifile.close();
     }
     else
       log.printf("+++ WARNING +++ restart requested, but file '%s' was not found!\n",kernelsFileName.c_str());
+    //sync all walkers and treads. Not sure is mandatory but is no harm
+    comm.Barrier();
+    if(comm.Get_rank()==0)
+      multi_sim_comm.Barrier();
   }
 
 //setup output kernels file
