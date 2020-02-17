@@ -20,6 +20,7 @@ do
     echo -e "\n\n $dir/$i \n"
 #    ../Build-fes_running.py -r $i
     ../Reweight-multi.py -r $i
+    ../Reweight-multi.py -r $i -f
   done
   cd ..
 done
@@ -36,5 +37,5 @@ make_stats() {
          }' > $2
 }
 
-#make_stats "rep_?/fes_deltaF.?.data" stats-fes_deltaF.data
 make_stats "rep_?/fes_deltaF.rew.?.data" stats-fes_deltaF.rew.data
+make_stats "rep_?/tran-1/fes_deltaF.rew.?.data" flip-stats-fes_deltaF.rew.data

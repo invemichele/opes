@@ -18,9 +18,8 @@ do
   for i in `seq 0 $[n_rep-1]`
   do
     echo -e "\n\n $dir/$i \n"
-    ../Build-fes_running.py -r $i
-    ../Reweight-multi.py -r $i
-    ../Reweight-multi.py -r $i -t 5000
+    ../Build-fes_running-metad.py -r $i
+    ../Reweight-multi-metad.py -r $i -f
   done
   cd ..
 done
@@ -38,4 +37,4 @@ make_stats() {
 }
 
 make_stats "rep_?/fes_deltaF.?.data" stats-fes_deltaF.data
-make_stats "rep_?/fes_deltaF.rew.?.data" stats-fes_deltaF.rew.data
+make_stats "rep_?/tran-1/fes_deltaF.rew.?.data" flip-stats-fes_deltaF.rew.data

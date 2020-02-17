@@ -58,7 +58,7 @@ b_height=np.array(data.ix[:,3])
 del data
 
 #get true fes
-data=pd.read_csv('../../ref-model100.data',sep='\s+',comment='#',header=None,usecols=[1])
+data=pd.read_csv('../../ref_fes-model.data',sep='\s+',comment='#',header=None,usecols=[1])
 true_fes=np.array(data.ix[:,1])
 del data
 Z0=(np.exp(-true_fes/kbt)).sum()

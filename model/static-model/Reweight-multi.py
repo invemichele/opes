@@ -27,6 +27,7 @@ parser = argparse.ArgumentParser(description='reweight')
 parser.add_argument('-r',dest='replica',type=int,required=True,help='replica number')
 parser.add_argument('-b',dest='bck',type=str,default='',required=False,help='backup prefix, e.g. \"bck.0.\"')
 parser.add_argument('-t',dest='tran',type=int,default=0,required=False,help='transient to be skipped')
+parser.add_argument('-f',dest='flip',action='store_true',default=False,required=False,help='flip time')
 args = parser.parse_args()
 wk='.'+str(args.replica)
 print('  replica: '+wk)
@@ -34,16 +35,24 @@ bck=args.bck
 if bck:
   print('  backup: '+bck)
 tran=args.tran
+flip=args.flip
 sub_dir=''
+if tran and flip:
+  sys.exit(' choose either tran of flip')
 if tran:
   sub_dir='tran'+str(tran)+'/'
   print('  tran=',tran)
+if flip:
+  sub_dir='tran-1/'
+  print('  flip')
 
 #get colvar
 filename=bck+'Colvar'+wk+'.data'
 cv_col=1
 bias_col=3
 data=pd.read_csv(filename,sep='\s+',comment='#',header=None,usecols=[cv_col,bias_col])
+if flip:
+  data=data.iloc[::-1]
 cv=np.array(data.ix[:,cv_col])
 bias=np.array(data.ix[:,bias_col])
 del data
@@ -81,6 +90,10 @@ for i in range(int(tran/pace_to_time),len(cv)):
 file_ext=wk+'.data'
 filename=sub_dir+'fes_deltaF.rew'+file_ext
 head='time  deltaF'
+if flip:
+  head+=' # flip'
+  time-=time[0]
+  time=time[::-1]
 cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
 cmd.wait()
 np.savetxt(filename,np.c_[time,deltaF],header=head,fmt='%14.9f')
