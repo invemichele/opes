@@ -1,5 +1,5 @@
 /* +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-   Copyright (c) 2011-2019 The plumed team
+   Copyright (c) 2011-2020 The plumed team
    (see the PEOPLE file at the root of the distribution for a list of names)
 
    See http://www.plumed.org for more information.
@@ -27,7 +27,7 @@
 #include "tools/File.h"
 
 namespace PLMD {
-namespace bias {
+namespace opes {
 
 //+PLUMEDOC BIAS OPES_WT
 /*
@@ -47,7 +47,7 @@ OPES_WT ...
 */
 //+ENDPLUMEDOC
 
-class OPESwt : public Bias {
+class OPESwt : public bias::Bias {
 
 private:
   bool isFirstStep_;
@@ -63,6 +63,7 @@ private:
   double bias_prefactor_;
   unsigned stride_;
   std::vector<double> sigma0_;
+  bool measure_sigma_;
   bool fixed_sigma_;
   double epsilon_;
   double sum_weights_;
@@ -120,7 +121,7 @@ void OPESwt::registerKeywords(Keywords& keys) {
   keys.use("ARG");
   keys.add("compulsory","TEMP","-1","temperature. If not specified tries to get it from MD engine");
   keys.add("compulsory","PACE","the frequency for kernel addition");
-  keys.add("compulsory","SIGMA","the initial widths of the kernels");
+  keys.add("compulsory","SIGMA","0","the initial widths of the kernels. If not set, the standar deviation of the unbiased fluctuations will be measured before starting biasing");
   keys.add("compulsory","BARRIER","the free energy barrier to be overcome. It is used to set BIASFACTOR, EPSILON, and KERNEL_CUTOFF to reasonable values");
   keys.add("compulsory","COMPRESSION_THRESHOLD","1","merge kernels if closer than this threshold. Set to zero to avoid compression");
 //extra options
@@ -157,7 +158,6 @@ OPESwt::OPESwt(const ActionOptions&ao)
   , isFirstStep_(true)
   , afterCalculate_(false)
   , counter_(0)
-  , stride_(500)
   , sum_weights_(0)
   , sum_weights2_(0)
   , Zeta_(1)
@@ -180,8 +180,16 @@ OPESwt::OPESwt(const ActionOptions&ao)
 //other compulsory input
   parse("PACE",stride_);
 
+  measure_sigma_=false;
   parseVector("SIGMA",sigma0_);
-  plumed_massert(sigma0_.size()==ncv_,"number of SIGMA parameters does not match number of arguments");
+  if(sigma0_[0]==0)
+  {
+    measure_sigma_=true;
+    sigma0_.clear();
+    sigma0_.resize(2*ncv_,0); //second half will store the averages
+  }
+  else
+    plumed_massert(sigma0_.size()==ncv_,"number of SIGMA parameters does not match number of arguments");
 
   double barrier=0;
   parse("BARRIER",barrier);
@@ -215,7 +223,8 @@ OPESwt::OPESwt(const ActionOptions&ao)
   parseFlag("NO_NORM",no_Zeta_);
   if(no_Zeta_)
   {//this makes it more gentle in the initial phase
-    counter_=1;
+    if(!measure_sigma_)
+      counter_=1;
     sum_weights_=1;
     sum_weights2_=1;
   }
@@ -290,6 +299,7 @@ OPESwt::OPESwt(const ActionOptions&ao)
     {
       ifile.open(kernelsFileName);
       log.printf("  RESTART - make sure all used options are compatible\n");
+      plumed_massert(!measure_sigma_,"SIGMA must be set manually if you want to restart");
       log.printf("    Restarting from: %s\n",kernelsFileName.c_str());
       double old_biasfactor;
       ifile.scanField("biasfactor",old_biasfactor);
@@ -416,18 +426,23 @@ OPESwt::OPESwt(const ActionOptions&ao)
   getPntrToComponent("nker")->set(kernels_.size());
 
 //printing some info
-  log.printf("  Temperature T = %g\n",kbt_/Kb);
-  log.printf("  Beta = %g\n",1./kbt_);
+  log.printf("  temperature T = %g\n",kbt_/Kb);
+  log.printf("  beta = %g\n",1./kbt_);
   log.printf("  depositing new kernels with PACE = %d\n",stride_);
   log.printf("  expected BARRIER is %g\n",barrier);
   if(biasfactor!=0)
     log.printf("  using target distribution with BIASFACTOR gamma = %g\n",biasfactor);
   else
     log.printf("  using flat target distribution, no well-tempering\n");
-  log.printf("  kernels have initial SIGMA = ");
-  for(unsigned i=0; i<ncv_; i++)
-    log.printf(" %g",sigma0_[i]);
-  log.printf("\n");
+  if(measure_sigma_)
+    log.printf(" -- SIGMA not provided, it will be taken equal to the unbiased standard deviation in the basin\n");
+  else
+  {
+    log.printf("  kernels have initial SIGMA = ");
+    for(unsigned i=0; i<ncv_; i++)
+      log.printf(" %g",sigma0_[i]);
+    log.printf("\n");
+  }
   if(fixed_sigma_)
     log.printf(" -- FIXED_SIGMA: sigma will not decrease as Neff increases\n");
   log.printf("  kernels are truncated with KERNELS_CUTOFF = %g\n",cutoff);
@@ -439,7 +454,7 @@ OPESwt::OPESwt(const ActionOptions&ao)
     log.printf(" +++ WARNING +++ the KERNEL_CUTOFF might be too small for the given EPSILON");
   log.printf("  kernels will be compressed when closer than COMPRESSION_THRESHOLD = %g\n",sqrt(threshold2_));
   if(threshold2_==0)
-    log.printf("  +++ WARNING +++ kernels will never merge, expect slowdowns\n");
+    log.printf(" +++ WARNING +++ kernels will never merge, expect slowdowns\n");
   if(!recursive_merge_)
     log.printf(" -- RECURSIVE_MERGE_OFF: only one merge for each new kernel will be attempted. This is faster only if total number of kernels does not grow too much\n");
   if(no_Zeta_)
@@ -447,7 +462,7 @@ OPESwt::OPESwt(const ActionOptions&ao)
   if(wProbStride_!=0 && walker_rank_==0)
     log.printf("  probability estimate is written on file %s with stride %d\n",probFileName.c_str(),wProbStride_);
   if(walkers_mpi)
-    log.printf("  -- WALKERS_MPI: if present, multiple replicas will communicate\n");
+    log.printf(" -- WALKERS_MPI: if present, multiple replicas will communicate\n");
   if(NumWalkers_>1)
   {
     log.printf("  using multiple walkers\n");
@@ -483,14 +498,43 @@ void OPESwt::calculate()
   const double old_prob=(prob*sum_weights_-tot_delta)/old_sum_weights_;
   work_+=current_bias_-kbt_*bias_prefactor_*std::log(old_prob/old_Zeta_+epsilon_);
 
+//measure sigma if not specified
+  if(measure_sigma_)
+  {
+    counter_++;
+    for(unsigned i=0; i<ncv_; i++)
+    { //Welford's online algorithm for standard deviation
+      const double old_delta=cv[i]-sigma0_[ncv_+i];
+      sigma0_[ncv_+i]+=(cv[i]-sigma0_[ncv_+i])/counter_;
+      sigma0_[i]+=old_delta*(cv[i]-sigma0_[ncv_+i]);
+    }
+    if(counter_>100*stride_) //should be enough
+    {
+      measure_sigma_=false;
+      sigma0_.resize(ncv_);//delete the averages, not needed anymore
+      for(unsigned i=0; i<ncv_; i++)
+        sigma0_[i]=std::sqrt(sigma0_[i]/counter_);
+      counter_=0;
+      if(no_Zeta_)
+        counter_=1;
+    //print to the log
+      log.printf("  --- using the unbiased standard deviation as initial SIGMA =");
+      for(unsigned i=0; i<ncv_; i++)
+        log.printf(" %g",sigma0_[i]);
+      log.printf("\n");
+    }
+  }
+
+//dump prob if requested
   if( (wProbStride_>0 && getStep()%wProbStride_==0) || (wProbStride_==-1 && getCPT()) )
     dumpProbToFile();
+
   afterCalculate_=true;
 }
 
 void OPESwt::update()
 {
-  if(getStep()%stride_!=0)
+  if(getStep()%stride_!=0 || measure_sigma_)
     return;
   if(isFirstStep_)//same in MetaD, useful for restarts?
   {
