@@ -126,7 +126,7 @@ void OPESwt::registerKeywords(Keywords& keys) {
   keys.add("compulsory","COMPRESSION_THRESHOLD","1","merge kernels if closer than this threshold. Set to zero to avoid compression");
 //extra options
   keys.add("optional","BIASFACTOR","the \\f$\\gamma\\f$ bias factor used for well-tempered target \\f$p(\\mathbf{s})\\f$."
-           " Set to 0 for non-tempered flat target");
+           " Set to 'inf' for non-tempered flat target");
   keys.add("optional","EPSILON","the value of the regularization constant for the probability");
   keys.add("optional","KERNEL_CUTOFF","truncate kernels at this distance (in units of sigma)");
   keys.addFlag("NO_NORM",false,"do not normalize over the explored CV space, \\f$Z_n=1\\f$");
@@ -196,11 +196,19 @@ OPESwt::OPESwt(const ActionOptions&ao)
   plumed_massert(barrier>=0,"the BARRIER should be greater than zero");
 
   double biasfactor=barrier/kbt_;
-  parse("BIASFACTOR",biasfactor);
-  plumed_massert(biasfactor==0 || biasfactor>1,"BIASFACTOR must be zero (for uniform target) or greater than one");
-  bias_prefactor_=1;
-  if(biasfactor!=0)
+  std::string biasfactor_str;
+  parse("BIASFACTOR",biasfactor_str);
+  if(strcasecmp(biasfactor_str.c_str(),"inf")==0)
+  {
+    biasfactor=std::numeric_limits<double>::infinity();
+    bias_prefactor_=1;
+  }
+  else
+  {
+    parse("BIASFACTOR",biasfactor);
+    plumed_massert(biasfactor>1,"BIASFACTOR must be greater than one (use 'inf' for uniform target)");
     bias_prefactor_=1-1./biasfactor;
+  }
 
   epsilon_=std::exp(-barrier/bias_prefactor_/kbt_);
   parse("EPSILON",epsilon_);
@@ -301,10 +309,20 @@ OPESwt::OPESwt(const ActionOptions&ao)
       log.printf("  RESTART - make sure all used options are compatible\n");
       plumed_massert(!measure_sigma_,"SIGMA must be set manually if you want to restart");
       log.printf("    Restarting from: %s\n",kernelsFileName.c_str());
-      double old_biasfactor;
-      ifile.scanField("biasfactor",old_biasfactor);
-      if(old_biasfactor!=biasfactor)
-        log.printf(" +++ WARNING +++ previous bias factor was %g while now it is %g. diff = %g\n",old_biasfactor,biasfactor,biasfactor-old_biasfactor);
+      std::string old_biasfactor_str;
+      ifile.scanField("biasfactor",old_biasfactor_str);
+      if(strcasecmp(old_biasfactor_str.c_str(),"inf")==0)
+      {
+        if(!std::isinf(biasfactor))
+          log.printf(" +++ WARNING +++ previous bias factor was inf while now it is %g\n",biasfactor);
+      }
+      else
+      {
+        double old_biasfactor;
+        ifile.scanField("biasfactor",old_biasfactor);
+        if(old_biasfactor!=biasfactor)
+          log.printf(" +++ WARNING +++ previous bias factor was %g while now it is %g. diff = %g\n",old_biasfactor,biasfactor,biasfactor-old_biasfactor);
+      }
       double old_epsilon;
       ifile.scanField("epsilon",old_epsilon);
       if(old_epsilon!=epsilon_)
@@ -394,7 +412,7 @@ OPESwt::OPESwt(const ActionOptions&ao)
   kernelsOfile_.addConstantField("compression_threshold");
   for(unsigned i=0; i<ncv_; i++)
     kernelsOfile_.setupPrintValue(getPntrToArgument(i));
-  kernelsOfile_.printField("biasfactor",biasfactor);
+  kernelsOfile_.printField("biasfactor",1./(1.-bias_prefactor_));
   kernelsOfile_.printField("epsilon",epsilon_);
   kernelsOfile_.printField("kernel_cutoff",sqrt(cutoff2_));
   kernelsOfile_.printField("compression_threshold",sqrt(threshold2_));
@@ -430,10 +448,9 @@ OPESwt::OPESwt(const ActionOptions&ao)
   log.printf("  beta = %g\n",1./kbt_);
   log.printf("  depositing new kernels with PACE = %d\n",stride_);
   log.printf("  expected BARRIER is %g\n",barrier);
-  if(biasfactor!=0)
-    log.printf("  using target distribution with BIASFACTOR gamma = %g\n",biasfactor);
-  else
-    log.printf("  using flat target distribution, no well-tempering\n");
+  log.printf("  using target distribution with BIASFACTOR gamma = %g\n",biasfactor);
+  if(std::isinf(biasfactor))
+    log.printf("    (thus a flat target distribution, no well-tempering)\n");
   if(measure_sigma_)
     log.printf(" -- SIGMA not provided, it will be taken equal to the unbiased standard deviation in the basin\n");
   else
@@ -802,7 +819,7 @@ void OPESwt::dumpProbToFile()
   probOfile_.addConstantField("sum_weights2");
   for(unsigned i=0; i<ncv_; i++) //print periodicity of CVs
     probOfile_.setupPrintValue(getPntrToArgument(i));
-  probOfile_.printField("biasfactor",bias_prefactor_==1?0:1./(1.-bias_prefactor_));
+  probOfile_.printField("biasfactor",1./(1.-bias_prefactor_));
   probOfile_.printField("epsilon",epsilon_);
   probOfile_.printField("kernel_cutoff",sqrt(cutoff2_));
   probOfile_.printField("compression_threshold",sqrt(threshold2_));
