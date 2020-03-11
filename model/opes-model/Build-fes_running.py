@@ -52,6 +52,7 @@ if len(line.split())!=7:
   sys.exit('  something is wrong with file '+filename)
 line=f.readline() #biasfactor
 line=f.readline() #epsilon
+epsilon=float(line.split()[-1])
 line=f.readline() #cutoff
 cutoff=float(line.split()[-1])
 line=f.readline() #threshold
@@ -119,6 +120,14 @@ def print_fes(it):
   prob=np.zeros(grid_bin)
   for j in range(len(z_center)):
     prob+=delta_kernel(z_center[j],z_sigma[j],z_height[j])
+  Zeta=0
+  for j in range(len(z_center)):
+    for jj in range(len(z_center)):
+      arg=((z_center[jj]-z_center[j])/z_sigma[j])**2
+      if arg<cutoff2:
+        Zeta+=z_height[j]*(np.exp(-0.5*arg)-val_at_cutoff)
+  Zeta/=len(z_center)
+  prob=prob/Zeta+epsilon
   z_fes=-kbt*np.log(prob/max(prob))
   np.savetxt(current_fes_running%((it+1)*pace_to_time),np.c_[cv_grid,z_fes],header=head,fmt='%14.9f')
   #calc other stuff
@@ -168,6 +177,14 @@ cmd.wait()
 prob=np.zeros(grid_bin)
 for i in range(len(z_center)):
   prob+=delta_kernel(z_center[i],z_sigma[i],z_height[i])
+Zeta=0
+for j in range(len(z_center)):
+  for jj in range(len(z_center)):
+    arg=((z_center[jj]-z_center[j])/z_sigma[j])**2
+    if arg<cutoff2:
+      Zeta+=z_height[j]*(np.exp(-0.5*arg)-val_at_cutoff)
+Zeta/=len(z_center)
+prob=prob/Zeta+epsilon
 z_fes=-kbt*np.log(prob/max(prob))
 head='cv  z_fes #threshold=%g'%threshold
 np.savetxt(fes_running_file+wk+file_ext,np.c_[cv_grid,z_fes],header=head,fmt='%14.9f')
