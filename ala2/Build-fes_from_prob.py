@@ -26,6 +26,15 @@ f=open(filename)
 line=f.readline()
 if len(line.split())!=8:
   sys.exit('  something is wrong with file'+filename)
+line=f.readline() #biasfactor
+line=f.readline() #epsilon
+epsilon=float(line.split()[-1])
+line=f.readline() #kernel_cutoff
+cutoff=float(line.split()[-1])
+val_at_cutoff=np.exp(-0.5*cutoff**2)
+line=f.readline() #compression_threshold
+line=f.readline() #norm
+Zeta=float(line.split()[-1])
 f.close()
 data=pd.read_table(filename,dtype=float,sep='\s+',comment='#',header=None,usecols=[1,2,3,4,5])
 center_x=np.array(data.ix[:,1])
@@ -46,7 +55,8 @@ for i in range(grid_bin):
     dx=np.absolute(x[i,j]-center_x)
     dy=np.absolute(y[i,j]-center_y)
     arg2=(np.minimum(dx,period-dx)/sigma_x)**2+(np.minimum(dy,period-dy)/sigma_y)**2
-    prob[i,j]=np.sum(height*np.exp(-0.5*arg2))
+    prob[i,j]=np.sum(height*(np.maximum(np.exp(-0.5*arg2)-val_at_cutoff,0)))
+    prob[i,j]=prob[i,j]/Zeta+epsilon
     if prob[i,j]>max_prob:
       max_prob=prob[i,j]
     if x[i,j]>0 and x[i,j]<2.3:
