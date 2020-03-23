@@ -39,7 +39,6 @@ OPES_WT ...
   LABEL=opes
   ARG=cv
   PACE=500
-  SIGMA=0.2
   BARRIER=15
 ... OPES_WT
 
@@ -103,7 +102,7 @@ private:
 
   OFile probOfile_;
   int wProbStride_;
-  bool storeOldProb_;
+  bool storeOldProbs_;
 
 public:
   OPESwt(const ActionOptions&);
@@ -142,7 +141,7 @@ void OPESwt::registerKeywords(Keywords& keys) {
 //save probability estimate (compressed kernels)
   keys.add("optional","PROB_WFILE","the file on which to write the estimated probability");
   keys.add("optional","PROB_WSTRIDE","write the estimated probability to a file every N steps");
-  keys.addFlag("STORE_PROB",false,"store all the estimated probability files the calculation generates. They will be deleted if this keyword is not present");
+  keys.addFlag("STORE_PROBS",false,"store all the probability files the calculation generates. They are overwritten if this keyword is not present");
 //miscellaneous
   keys.addFlag("WALKERS_MPI",false,"Switch on MPI version of multiple walkers");
   keys.addFlag("SERIAL",false,"perform calculations in serial. Might be faster for small number of kernels e.g. 1D systems");
@@ -265,9 +264,9 @@ OPESwt::OPESwt(const ActionOptions&ao)
   parse("PROB_WFILE",probFileName);
   wProbStride_=0;
   parse("PROB_WSTRIDE",wProbStride_);
-  storeOldProb_=false;
-  parseFlag("STORE_PROB",storeOldProb_);
-  if(wProbStride_!=0 || storeOldProb_)
+  storeOldProbs_=false;
+  parseFlag("STORE_PROBS",storeOldProbs_);
+  if(wProbStride_!=0 || storeOldProbs_)
     plumed_massert(probFileName.length()>0,"filename for estimated probability not specified, use PROB_WFILE");
   if(probFileName.length()>0 && wProbStride_==0)
     wProbStride_=-1;//will print only on CPT events
@@ -568,7 +567,7 @@ void OPESwt::update()
   if(getStep()%stride_!=0)
     return;
   plumed_massert(afterCalculate_,"OPESwt::update() must be called after OPESwt::calculate() to work properly");
-  afterCalculate_=false;
+  afterCalculate_=false; //if needed implementation can be changed to avoid this
 
 //work done by the bias in one iteration, uses as zero reference a point at inf, so that the work is always positive
   const double min_shift=kbt_*bias_prefactor_*std::log(old_Zed_/Zed_*old_sum_weights_/sum_weights_);
@@ -789,7 +788,7 @@ unsigned OPESwt::getMergeableKernel(const std::vector<double> &giver_center,cons
 { //returns kernels_.size() if no match is found
   unsigned min_k=kernels_.size();
   double min_dist2=threshold2_;
-  for(unsigned k=rank_; k<kernels_.size(); k+=NumParallel_) //TODO add neighbor list
+  for(unsigned k=rank_; k<kernels_.size(); k+=NumParallel_) //TODO add neighbor list!
   {
     if(k==giver_k) //a kernel should not be merged with itself
       continue;
@@ -822,7 +821,7 @@ unsigned OPESwt::getMergeableKernel(const std::vector<double> &giver_center,cons
 
 void OPESwt::dumpProbToFile()
 {
-  if(storeOldProb_)
+  if(storeOldProbs_)
     probOfile_.clearFields();
   else if(walker_rank_==0)
     probOfile_.rewind();
@@ -834,6 +833,14 @@ void OPESwt::dumpProbToFile()
   probOfile_.addConstantField("zed");
   probOfile_.addConstantField("sum_weights");
   probOfile_.addConstantField("sum_weights2");
+  if(sigma0_.size()==0)
+  {
+    for(unsigned i=0; i<ncv_; i++)
+    {
+      probOfile_.addConstantField("av_cv_"+getPntrToArgument(i)->getName());
+      probOfile_.addConstantField("av_M2_"+getPntrToArgument(i)->getName());
+    }
+  }
   for(unsigned i=0; i<ncv_; i++) //print periodicity of CVs
     probOfile_.setupPrintValue(getPntrToArgument(i));
   probOfile_.printField("biasfactor",1./(1.-bias_prefactor_));
@@ -843,6 +850,14 @@ void OPESwt::dumpProbToFile()
   probOfile_.printField("zed",Zed_);
   probOfile_.printField("sum_weights",sum_weights_);
   probOfile_.printField("sum_weights2",sum_weights2_);
+  if(sigma0_.size()==0)
+  {
+    for(unsigned i=0; i<ncv_; i++)
+    {
+      probOfile_.printField("av_cv_"+getPntrToArgument(i)->getName(),av_cv_[i]);
+      probOfile_.printField("av_M2_"+getPntrToArgument(i)->getName(),av_M2_[i]);
+    }
+  }
   for(unsigned k=0; k<kernels_.size(); k++)
   {
     probOfile_.printField("time",getTime());
@@ -853,7 +868,7 @@ void OPESwt::dumpProbToFile()
     probOfile_.printField("height",kernels_[k].height);
     probOfile_.printField();
   }
-  if(!storeOldProb_)
+  if(!storeOldProbs_)
     probOfile_.flush();
 }
 
