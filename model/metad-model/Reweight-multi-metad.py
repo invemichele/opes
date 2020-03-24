@@ -58,8 +58,8 @@ data_rct=pd.read_csv(filename,sep='\s+',comment='#',header=None,usecols=[rct_col
 if flip:
   data=data.iloc[::-1]
   data_rct=data_rct.iloc[::-1]
-cv=np.array(data.ix[:,cv_col])
-bias=np.array(data.ix[:,bias_col])-np.array(data_rct.ix[:,rct_col])
+cv=np.array(data.iloc[:,0])
+bias=np.array(data.iloc[:,1])-np.array(data_rct.iloc[:,0])
 del data
 del data_rct
 
@@ -68,7 +68,8 @@ file_ext='.data'
 fes_running_file='FES_rew'
 head='cv_bin  fes'
 current_fes_running=sub_dir+fes_running_file+wk+'/'+fes_running_file+'.t-%d'+file_ext
-create_dir='bck.meup.sh {0}; mkdir -p {0}'
+#create_dir='bck.meup.sh {0}; mkdir -p {0}'
+create_dir='mkdir -p {0}'
 cmd=subprocess.Popen(create_dir.format(sub_dir+fes_running_file+wk),shell=True)
 cmd.wait()
 
@@ -100,14 +101,14 @@ if flip:
   head+=' # flip'
   time-=time[0]
   time=time[::-1]
-cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
-cmd.wait()
+#cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
+#cmd.wait()
 np.savetxt(filename,np.c_[time,deltaF],header=head,fmt='%14.9f')
 if not tran:
   fes=-kbt*np.log(prob/max(prob))
   filename='FES_rew'+file_ext
   head='cv_bin  fes'
-  cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
-  cmd.wait()
+  #cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
+  #cmd.wait()
   np.savetxt(filename,np.c_[cv_grid,fes],header=head,fmt='%14.9f')
 

@@ -52,14 +52,14 @@ inv_gamma=0 #non well-tempered case
 if gamma!=-1:
   inv_gamma=1/gamma
 data=pd.read_csv(filename,sep='\s+',comment='#',header=None,usecols=[0,1,3])
-b_time=np.array(data.ix[:,0])
-b_center=np.array(data.ix[:,1])
-b_height=np.array(data.ix[:,3])
+b_time=np.array(data.iloc[:,0])
+b_center=np.array(data.iloc[:,1])
+b_height=np.array(data.iloc[:,2])
 del data
 
 #get true fes
 data=pd.read_csv('../../ref_fes-model.data',sep='\s+',comment='#',header=None,usecols=[1])
-true_fes=np.array(data.ix[:,1])
+true_fes=np.array(data.iloc[:,0])
 del data
 Z0=(np.exp(-true_fes/kbt)).sum()
 true_fes+=kbt*np.log(Z0) #normalization
@@ -69,7 +69,8 @@ file_ext='.data'
 fes_running_file='fes_running'
 head='cv_bin  fes'
 current_fes_running=fes_running_file+wk+'/'+fes_running_file+'.t-%d'+file_ext
-create_dir='bck.meup.sh {0}; mkdir -p {0}'
+#create_dir='bck.meup.sh {0}; mkdir -p {0}'
+create_dir='mkdir -p {0}'
 cmd=subprocess.Popen(create_dir.format(fes_running_file+wk),shell=True)
 cmd.wait()
 
@@ -104,12 +105,12 @@ for i in range(len(b_center)):
 file_ext=wk+'.data'
 filename='fes_deltaF'+file_ext
 head='time  deltaF'
-cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
-cmd.wait()
+#cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
+#cmd.wait()
 np.savetxt(filename,np.c_[time,deltaF],header=head,fmt='%14.9f')
 
 filename='rct'+file_ext
 head='# time  rct\n0 0'
-cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
-cmd.wait()
+#cmd=subprocess.Popen('bck.meup.sh -i '+filename,shell=True)
+#cmd.wait()
 np.savetxt(filename,np.c_[b_time,rct],header=head,comments='',fmt='%14.9f')

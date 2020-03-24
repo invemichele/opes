@@ -1,4 +1,4 @@
-#! FIELDS time phi1 phi2 phi3 psi1 psi2 psi3 opes.bias opes.work opes.rct opes.norm opes.neff opes.nker
+#! FIELDS time phi1 phi2 phi3 psi1 psi2 psi3 opes.bias opes.work opes.rct opes.zed opes.neff opes.nker
 #! SET min_phi1 -pi
 #! SET max_phi1 pi
 #! SET min_phi2 -pi

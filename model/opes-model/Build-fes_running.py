@@ -65,9 +65,9 @@ f.close()
 cutoff2=cutoff**2
 val_at_cutoff=np.exp(-0.5*cutoff2)
 data=pd.read_table(filename,dtype=float,sep='\s+',comment='#',header=None,usecols=[1,2,3])
-center=np.array(data.ix[:,1])
-sigma=np.array(data.ix[:,2])
-height=np.array(data.ix[:,3])
+center=np.array(data.iloc[:,0])
+sigma=np.array(data.iloc[:,1])
+height=np.array(data.iloc[:,2])
 del data
 print('  all data loaded',end='\r')
 
@@ -76,9 +76,10 @@ file_ext='.data'
 fes_running_file='fes_running'
 head='cv_bin  fes'
 current_fes_running=fes_running_file+wk+'/'+fes_running_file+'.t-%d'+file_ext
-create_dir='bck.meup.sh {0}; mkdir -p {0}'
-cmd=subprocess.Popen(create_dir.format(fes_running_file+wk),shell=True)
-cmd.wait()
+#create_dir='bck.meup.sh {0}; mkdir -p {0}'
+create_dir='mkdir -p {0}'
+#cmd=subprocess.Popen(create_dir.format(fes_running_file+wk),shell=True)
+#cmd.wait()
 
 # useful functions
 n_tot=int(len(center)/print_stride)
@@ -120,14 +121,14 @@ def print_fes(it):
   prob=np.zeros(grid_bin)
   for j in range(len(z_center)):
     prob+=delta_kernel(z_center[j],z_sigma[j],z_height[j])
-  Zeta=0
+  Zed=0
   for j in range(len(z_center)):
     for jj in range(len(z_center)):
       arg=((z_center[jj]-z_center[j])/z_sigma[j])**2
       if arg<cutoff2:
-        Zeta+=z_height[j]*(np.exp(-0.5*arg)-val_at_cutoff)
-  Zeta/=len(z_center)
-  prob=prob/Zeta+epsilon
+        Zed+=z_height[j]*(np.exp(-0.5*arg)-val_at_cutoff)
+  Zed/=len(z_center)
+  prob=prob/Zed+epsilon
   z_fes=-kbt*np.log(prob/max(prob))
   np.savetxt(current_fes_running%((it+1)*pace_to_time),np.c_[cv_grid,z_fes],header=head,fmt='%14.9f')
   #calc other stuff
@@ -164,27 +165,27 @@ print(' compression rate: %g'% ((len(center)-len(z_center))/len(center)*100) )
 
 #print deltaF
 filename='fes_deltaF'+wk+file_ext
-backup='bck.meup.sh '+filename
-cmd=subprocess.Popen(backup,shell=True)
-cmd.wait()
+#backup='bck.meup.sh '+filename
+#cmd=subprocess.Popen(backup,shell=True)
+#cmd.wait()
 head='time  deltaF #transition_s=%g'%transition_s
 np.savetxt(filename,np.c_[time,deltaF],header=head,fmt='%14.9f')
 
 #build and print final
-backup='bck.meup.sh '+fes_running_file+wk+file_ext
-cmd=subprocess.Popen(backup,shell=True)
-cmd.wait()
+#backup='bck.meup.sh '+fes_running_file+wk+file_ext
+#cmd=subprocess.Popen(backup,shell=True)
+#cmd.wait()
 prob=np.zeros(grid_bin)
 for i in range(len(z_center)):
   prob+=delta_kernel(z_center[i],z_sigma[i],z_height[i])
-Zeta=0
+Zed=0
 for j in range(len(z_center)):
   for jj in range(len(z_center)):
     arg=((z_center[jj]-z_center[j])/z_sigma[j])**2
     if arg<cutoff2:
-      Zeta+=z_height[j]*(np.exp(-0.5*arg)-val_at_cutoff)
-Zeta/=len(z_center)
-prob=prob/Zeta+epsilon
+      Zed+=z_height[j]*(np.exp(-0.5*arg)-val_at_cutoff)
+Zed/=len(z_center)
+prob=prob/Zed+epsilon
 z_fes=-kbt*np.log(prob/max(prob))
 head='cv  z_fes #threshold=%g'%threshold
 np.savetxt(fes_running_file+wk+file_ext,np.c_[cv_grid,z_fes],header=head,fmt='%14.9f')
@@ -192,8 +193,8 @@ np.savetxt(fes_running_file+wk+file_ext,np.c_[cv_grid,z_fes],header=head,fmt='%1
 #print final kernels
 if print_compressed_kernels:
   filename='compressed-Kernels'+wk+'.data'
-  backup='bck.meup.sh -i '+filename
-  cmd=subprocess.Popen(backup,shell=True)
-  cmd.wait()
+  #backup='bck.meup.sh -i '+filename
+  #cmd=subprocess.Popen(backup,shell=True)
+  #cmd.wait()
   head='center  sigma  height #threshold=%g'%threshold
   np.savetxt(filename,np.c_[z_center,z_sigma,z_height],header=head,fmt='%14.9f')

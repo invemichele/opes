@@ -5,7 +5,6 @@
 import sys
 import numpy as np
 import pandas as pd
-import subprocess
 
 #toggles
 bck=''
@@ -34,9 +33,9 @@ x_col=2
 y_col=3
 bias_col=7
 data=pd.read_table(filename,dtype=float,sep='\s+',comment='#',header=None,usecols=[x_col,y_col,bias_col],skiprows=transient)
-cv_x=np.array(data.ix[:,x_col])
-cv_y=np.array(data.ix[:,y_col])
-bias=np.array(data.ix[:,bias_col])
+cv_x=np.array(data.iloc[:,x_col])
+cv_y=np.array(data.iloc[:,y_col])
+bias=np.array(data.iloc[:,bias_col])
 del data
 
 #build fes

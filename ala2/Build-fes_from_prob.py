@@ -5,7 +5,6 @@
 import sys
 import numpy as np
 import pandas as pd
-import subprocess
 
 if len(sys.argv)<2:
   sys.exit(' I need the filename of the kernels to build the fes')
@@ -33,15 +32,15 @@ line=f.readline() #kernel_cutoff
 cutoff=float(line.split()[-1])
 val_at_cutoff=np.exp(-0.5*cutoff**2)
 line=f.readline() #compression_threshold
-line=f.readline() #norm
-Zeta=float(line.split()[-1])
+line=f.readline() #zed
+Zed=float(line.split()[-1])
 f.close()
 data=pd.read_table(filename,dtype=float,sep='\s+',comment='#',header=None,usecols=[1,2,3,4,5])
-center_x=np.array(data.ix[:,1])
-center_y=np.array(data.ix[:,2])
-sigma_x=np.array(data.ix[:,3])
-sigma_y=np.array(data.ix[:,4])
-height=np.array(data.ix[:,5])
+center_x=np.array(data.iloc[:,0])
+center_y=np.array(data.iloc[:,1])
+sigma_x=np.array(data.iloc[:,2])
+sigma_y=np.array(data.iloc[:,3])
+height=np.array(data.iloc[:,4])
 del data
 
 #calculate
@@ -56,7 +55,7 @@ for i in range(grid_bin):
     dy=np.absolute(y[i,j]-center_y)
     arg2=(np.minimum(dx,period-dx)/sigma_x)**2+(np.minimum(dy,period-dy)/sigma_y)**2
     prob[i,j]=np.sum(height*(np.maximum(np.exp(-0.5*arg2)-val_at_cutoff,0)))
-    prob[i,j]=prob[i,j]/Zeta+epsilon
+    prob[i,j]=prob[i,j]/Zed+epsilon
     if prob[i,j]>max_prob:
       max_prob=prob[i,j]
     if x[i,j]>0 and x[i,j]<2.3:
