@@ -358,12 +358,12 @@ OPESwt::OPESwt(const ActionOptions&ao)
         log.printf(" +++ WARNING +++ previous compression_threshold was %g while now it is %g. diff = %g\n",old_threshold,threshold,threshold-old_threshold);
       if(probRestart)
       {
-        std::string str_counter;
-        ifile.scanField("counter",str_counter); //scanField does not handle unsigned
-        counter_=std::stoul(str_counter);
         ifile.scanField("zed",Zed_);
         ifile.scanField("sum_weights",sum_weights_);
         ifile.scanField("sum_weights2",sum_weights2_);
+        std::string str_counter;
+        ifile.scanField("counter",str_counter); //scanField does not handle unsigned
+        counter_=std::stoul(str_counter);
         if(sigma0_.size()==0)
         {
           ifile.scanField("adaptive_counter",str_counter); //scanField does not handle long unsigned
@@ -881,10 +881,10 @@ void OPESwt::dumpProbToFile()
   probOfile_.addConstantField("epsilon");
   probOfile_.addConstantField("kernel_cutoff");
   probOfile_.addConstantField("compression_threshold");
-  probOfile_.addConstantField("counter");
   probOfile_.addConstantField("zed");
   probOfile_.addConstantField("sum_weights");
   probOfile_.addConstantField("sum_weights2");
+  probOfile_.addConstantField("counter");
   if(sigma0_.size()==0)
   {
     probOfile_.addConstantField("adaptive_counter");
@@ -900,10 +900,10 @@ void OPESwt::dumpProbToFile()
   probOfile_.printField("epsilon",epsilon_);
   probOfile_.printField("kernel_cutoff",sqrt(cutoff2_));
   probOfile_.printField("compression_threshold",sqrt(threshold2_));
-  probOfile_.printField("counter",std::to_string(counter_)); //printField does not handle unsigned
   probOfile_.printField("zed",Zed_);
   probOfile_.printField("sum_weights",sum_weights_);
   probOfile_.printField("sum_weights2",sum_weights2_);
+  probOfile_.printField("counter",std::to_string(counter_)); //printField does not handle unsigned
   if(sigma0_.size()==0)
   {
     probOfile_.printField("adaptive_counter",std::to_string(adaptive_counter_)); //printField does not handle long unsigned
