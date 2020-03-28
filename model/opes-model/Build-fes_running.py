@@ -78,8 +78,8 @@ head='cv_bin  fes'
 current_fes_running=fes_running_file+wk+'/'+fes_running_file+'.t-%d'+file_ext
 #create_dir='bck.meup.sh {0}; mkdir -p {0}'
 create_dir='mkdir -p {0}'
-#cmd=subprocess.Popen(create_dir.format(fes_running_file+wk),shell=True)
-#cmd.wait()
+cmd=subprocess.Popen(create_dir.format(fes_running_file+wk),shell=True)
+cmd.wait()
 
 # useful functions
 n_tot=int(len(center)/print_stride)
