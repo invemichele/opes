@@ -22,9 +22,15 @@ OPES_WT ...
   STORE_PROBS
 ... OPES_WT
 
+# Since we are in 6D it is convenient to print the colvar more often
+# (STRIDE=50 instead of STRIDE=500), it will help with the reweighting
 PRINT FMT=%g STRIDE=50 FILE=Colvar.data ARG=*
 
 ENDPLUMED
 
-Note that since we are in 6D it is convenient to print the colvar 
-more often (STRIDE=50 instead of STRIDE=500), it will help with the reweighting
+A better performing result can be obtained with the following simpler input:
+
+  opes: OPES_WT ARG=phi1,phi2,phi3,psi1,psi2,psi3 PACE=50 BARRIER=50
+
+but it was not used, to have a more fair comparison with standard metadynamics ala2 simulations.
+(if not set, SIGMA is chosen adaptively, similarly to METAD ADAPTIVE=DIFF)

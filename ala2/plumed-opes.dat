@@ -22,3 +22,9 @@ PRINT FMT=%g STRIDE=500 FILE=Colvar.data ARG=phi,psi,opes.*
 
 ENDPLUMED
 
+A better performing result can be obtained with the following simpler input:
+
+  opes: OPES_WT ARG=phi,psi PACE=50 BARRIER=50
+
+but it was not used, to have a more fair comparison with standard metadynamics ala2 simulations.
+(if not set, SIGMA is chosen adaptively, similarly to METAD ADAPTIVE=DIFF)
