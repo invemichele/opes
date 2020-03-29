@@ -49,7 +49,7 @@ If you know wich one is the most stable basin of your system you should start yo
 
 By default SIGMA is adaptive, estimated from the fluctuations over ADAPTIVE_SIGMA_STRIDE simulation steps (similar to \ref METAD ADAPTIVE=DIFF, but contrary to that, no artifacts will appear and the bias will converge to the correct one).
 
-To use flat target explicitly set BIASFACTOR=inf (but should be needed only in very specific cases).
+To use uniform flat target, explicitly set BIASFACTOR=inf (but should be needed only in very specific cases).
 
 Restart can be done from a KERNELS file, but it might not be perfect (due to limited precision when printing numbers to file, or usage of adaptive SIGMA).
 For a perfect restart you need to use PROB_RFILE to read a checkpoint of the probability estimate.
@@ -95,14 +95,14 @@ private:
   unsigned NumWalkers_;
   unsigned walker_rank_;
   unsigned ncv_;
-  unsigned counter_;
+  unsigned long counter_;
 
   double kbt_;
   double bias_prefactor_;
   unsigned stride_;
   std::vector<double> sigma0_;
   unsigned adaptive_sigma_stride_;
-  long unsigned adaptive_counter_;
+  unsigned long adaptive_counter_;
   std::vector<double> av_cv_;
   std::vector<double> av_M2_;
   bool fixed_sigma_;
@@ -167,7 +167,7 @@ void OPESwt::registerKeywords(Keywords& keys) {
   keys.add("compulsory","COMPRESSION_THRESHOLD","1","merge kernels if closer than this threshold. Set to zero to avoid compression");
 //extra options
   keys.add("optional","BIASFACTOR","the \\f$\\gamma\\f$ bias factor used for well-tempered target \\f$p(\\mathbf{s})\\f$."
-           " Set to 'inf' for non-tempered flat target");
+           " Set to 'inf' for uniform flat target");
   keys.add("optional","EPSILON","the value of the regularization constant for the probability");
   keys.add("optional","KERNEL_CUTOFF","truncate kernels at this distance (in units of sigma)");
   keys.add("optional","ADAPTIVE_SIGMA_STRIDE","stride for measuring adaptive sigma. Default is 10 PACE");
@@ -552,7 +552,7 @@ OPESwt::OPESwt(const ActionOptions&ao)
   log.printf("  expected BARRIER is %g\n",barrier);
   log.printf("  using target distribution with BIASFACTOR gamma = %g\n",biasfactor);
   if(std::isinf(biasfactor))
-    log.printf("    (thus a flat target distribution, no well-tempering)\n");
+    log.printf("    (thus a uniform flat target distribution, no well-tempering)\n");
   if(sigma0_.size()==0)
   {
     log.printf("  adaptive SIGMA will be used, with ADAPTIVE_SIGMA_STRIDE = %d\n",adaptive_sigma_stride_);
@@ -591,7 +591,11 @@ OPESwt::OPESwt(const ActionOptions&ao)
     log.printf("    number of walkers: %d\n",NumWalkers_);
     log.printf("    walker rank: %d\n",walker_rank_);
   }
+  int mw_warning=0;
   if(!walkers_mpi && comm.Get_rank()==0 && multi_sim_comm.Get_size()>(int)NumWalkers_)
+    mw_warning=1;
+  comm.Bcast(mw_warning,0);
+  if(mw_warning) //log.printf messes up with comm, so never use it without Bcast!
     log.printf(" +++ WARNING +++ multiple replicas will NOT communicate unless the flag WALKERS_MPI is used\n");
   if(NumParallel_>1)
     log.printf("  using multiple threads per simulation: %d\n",NumParallel_);
