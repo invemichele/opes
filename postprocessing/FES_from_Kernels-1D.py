@@ -34,6 +34,7 @@ f=open(filename)
 line=f.readline() #header
 if len(line.split())!=7:
   sys.exit('  something is wrong with file '+filename)
+cvname=line.split()[3]
 line=f.readline() #biasfactor
 line=f.readline() #epsilon
 epsilon=float(line.split()[-1])
@@ -56,6 +57,7 @@ del data
 print('  all data loaded')
 
 #set grid
+grid_bin=args.grid_bin+1
 period=0
 if args.angle:
   if (args.grid_min is not None or args.grid_max is not None):
@@ -63,6 +65,7 @@ if args.angle:
   grid_min=-np.pi
   grid_max=np.pi
   period=2*np.pi
+  grid_bin-=1
 if args.grid_min is None:
   grid_min=min(center)
 else:
@@ -71,11 +74,17 @@ if args.grid_max is None:
   grid_max=max(center)
 else:
   grid_max=args.grid_max
-grid_bin=args.grid_bin
 cv_grid=np.linspace(grid_min,grid_max,grid_bin)
 
 #output files
-head='cv  fes'
+head='#! FIELDS '+cvname+' file.free der_'+cvname
+head+='\n#! SET min_'+cvname+' '+str(grid_min)
+head+='\n#! SET max_'+cvname+' '+str(grid_max)
+head+='\n#! SET nbins_'+cvname+' '+str(grid_bin)
+if period==0:
+  head+='\n#! SET periodic_'+cvname+' false'
+else:
+  head+='\n#! SET periodic_'+cvname+' true'
 print_stride=args.stride
 if print_stride==0:
   print_stride=len(center)+1
@@ -165,11 +174,11 @@ for i in range(1,len(center)):
     z_height.append(height[i])
   if (i+1)%print_stride==0:
     z_fes=build_fes()
-    np.savetxt(current_fes_running%((i+1)*pace_to_time),np.c_[cv_grid,z_fes],header=head,fmt='%14.9f')
+    np.savetxt(current_fes_running%((i+1)*pace_to_time),np.c_[cv_grid,z_fes],header=head,comments='',fmt='%14.9f')
 print(' total kernels read from file: %d'%len(center))
 print(' total kernels in compressed FES: %d'%len(z_center))
 
 #build and print final
 z_fes=build_fes()
-np.savetxt(outfile,np.c_[cv_grid,z_fes],header=head,fmt='%14.9f')
+np.savetxt(outfile,np.c_[cv_grid,z_fes],header=head,comments='',fmt='%14.9f')
 
