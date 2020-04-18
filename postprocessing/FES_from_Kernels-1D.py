@@ -110,7 +110,7 @@ def get_merge_candidate(c,self):
   for j in range(len(z_center)):
     if j==self:
       continue
-    dist=abs(c-z_center[j])/z_sigma[j]
+    dist=abs(c-z_center[j])/z_sigma[j] #merging through periodicity is not implemented in the code
     if dist<min_dist:
       min_j=j
   return min_j
