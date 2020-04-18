@@ -113,7 +113,7 @@ for i in range(grid_bin_y):
       dist_y=(y[i,j]-center_y)/sigma_y
     else:
       dy=np.absolute(y[i,j]-center_y)
-      dist_y=*np.minimum(dy,period_y-dy)/sigma_y
+      dist_y=np.minimum(dy,period_y-dy)/sigma_y
     arg2=dist_x**2+dist_y**2
     prob[i,j]=np.sum(height*(np.maximum(np.exp(-0.5*arg2)-val_at_cutoff,0)))
     prob[i,j]=prob[i,j]/Zed+epsilon
