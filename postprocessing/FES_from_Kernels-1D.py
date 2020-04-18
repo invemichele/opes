@@ -126,28 +126,31 @@ def merge(j,m_height,m_center,m_sigma):
 def build_fes(c,s,h):
   nker=len(c)
   prob=np.zeros(grid_bin)
+  der_prob=np.zeros(grid_bin)
   for x in range(len(cv_grid)):
     if period==0:
-      arg=((cv_grid[x]-c)/s)**2
+      dist=(cv_grid[x]-c)/s
     else:
       dx=np.abs(cv_grid[x]-c)
-      arg=(np.minimum(dx,period-dx)/s)**2
-    prob[x]=np.sum(h*np.maximum(np.exp(-0.5*arg)-val_at_cutoff,0))
+      dist=np.minimum(dx,period-dx)/s
+    prob[x]=np.sum(h*np.maximum(np.exp(-0.5*dist**2)-val_at_cutoff,0))
+    der_prob[x]=np.sum(dist/s*h*np.maximum(np.exp(-0.5*dist**2)-val_at_cutoff,0))
   if not faster:
     Zed=0
     for j in range(nker):
       if period==0:
-        arg=((c[j]-c)/s)**2
+        dist=(c[j]-c)/s
       else:
         dx=np.abs(c[j]-c)
-        arg=(np.minimum(dx,period-dx)/s)**2
-      Zed+=np.sum(h*np.maximum(np.exp(-0.5*arg)-val_at_cutoff,0))
+        dist=np.minimum(dx,period-dx)/s
+      Zed+=np.sum(h*np.maximum(np.exp(-0.5*dist**2)-val_at_cutoff,0))
     Zed/=nker
     prob=prob/Zed+epsilon
+    der_prob/=Zed
   norm=1
   if mintozero:
     norm=max(prob)
-  return -kbt*np.log(prob/norm)
+  return -kbt*np.log(prob/norm),-kbt/prob*der_prob
 
 # compression
 for i in range(1,len(center)):
@@ -172,12 +175,12 @@ for i in range(1,len(center)):
     z_sigma.append(sigma[i])
     z_height.append(height[i])
   if (i+1)%print_stride==0:
-    z_fes=build_fes(z_center,z_sigma,z_height)
-    np.savetxt(current_fes_running%((i+1)*pace_to_time),np.c_[cv_grid,z_fes],header=head,comments='',fmt='%14.9f')
+    fes,der_fes=build_fes(z_center,z_sigma,z_height)
+    np.savetxt(current_fes_running%((i+1)*pace_to_time),np.c_[cv_grid,fes,der_fes],header=head,comments='',fmt='%14.9f')
 print(' total kernels read from file: %d'%len(center))
 print(' total kernels in compressed FES: %d'%len(z_center))
 
 #build and print final
-z_fes=build_fes(z_center,z_sigma,z_height)
-np.savetxt(outfile,np.c_[cv_grid,z_fes],header=head,comments='',fmt='%14.9f')
+fes,der_fes=build_fes(z_center,z_sigma,z_height)
+np.savetxt(outfile,np.c_[cv_grid,fes,der_fes],header=head,comments='',fmt='%14.9f')
 
