@@ -9,7 +9,7 @@ import pandas as pd
 import subprocess
 import argparse
 
-# Manually change if necessary
+# Manually change if using RECURSTIVE_MERGE_OFF
 recursive_merge=True
 
 #parser
@@ -17,17 +17,19 @@ parser = argparse.ArgumentParser(description='get the running FES estimate used 
 parser.add_argument('--kernels',dest='filename',type=str,default='KERNELS',help='the kernels file name')
 parser.add_argument('--kt',dest='kbt',type=float,required=True,help='the temperature in energy units')
 parser.add_argument('--angle',dest='angle',action='store_true',default=False,help='the cv is an angle in the range [-pi,pi]')
-parser.add_argument('--min',dest='grid_min',type=str,required=False,help='lower bound for the grid')
-parser.add_argument('--max',dest='grid_max',type=str,required=False,help='upper bound for the grid')
+parser.add_argument('--min',dest='grid_min',type=float,required=False,help='lower bound for the grid')
+parser.add_argument('--max',dest='grid_max',type=float,required=False,help='upper bound for the grid')
 parser.add_argument('--bin',dest='grid_bin',type=int,default=100,help='number of bins for the grid')
-parser.add_argument('--stride',dest='stride',type=int,default=0,help='how often to print partial fes')
+parser.add_argument('--stride',dest='stride',type=int,default=0,help='how often to print running fes')
 parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
-parser.add_argument('--outfile',dest='outfile',type=str,default='fes.dat',help='grid spacing, alternative to number of bins')
+parser.add_argument('--faster',dest='faster',action='store_true',default=False,help='run faster, ingoring Zed and the epsilon cutoff')
+parser.add_argument('--outfile',dest='outfile',type=str,default='fes.dat',help='name of the output file')
 args = parser.parse_args()
 #parsing
 filename=args.filename
 kbt=args.kbt
 mintozero=args.mintozero
+faster=args.faster
 
 #get kernels
 f=open(filename)
@@ -43,7 +45,7 @@ cutoff=float(line.split()[-1])
 line=f.readline() #threshold
 threshold=float(line.split()[-1])
 for n in range(3):
-  line=f.readline() #for safety skip some lines
+  line=f.readline() #skip CV info if present
 line2=f.readline() #second line
 pace_to_time=(float(line2.split()[0])-float(line.split()[0]))
 f.close()
@@ -121,30 +123,27 @@ def merge(j,m_height,m_center,m_sigma):
     z_center[j]=c
     z_sigma[j]=np.sqrt(s2)
 
-def delta_kernel(c,s,h):
-  delta=np.zeros(len(cv_grid))
+def build_fes(c,s,h):
+  nker=len(c)
+  prob=np.zeros(grid_bin)
   for x in range(len(cv_grid)):
     if period==0:
       arg=((cv_grid[x]-c)/s)**2
     else:
-      dx=abs(cv_grid[x]-c)
-      arg=(min(dx,period-dx)/s)**2
-    if arg<cutoff2:
-      delta[x]=h*(np.exp(-0.5*arg)-val_at_cutoff)
-  return delta
-
-def build_fes():
-  prob=np.zeros(grid_bin)
-  for j in range(len(z_center)):
-    prob+=delta_kernel(z_center[j],z_sigma[j],z_height[j])
-  Zed=0
-  for j in range(len(z_center)):
-    for jj in range(len(z_center)):
-      arg=((z_center[jj]-z_center[j])/z_sigma[j])**2
-      if arg<cutoff2:
-        Zed+=z_height[j]*(np.exp(-0.5*arg)-val_at_cutoff)
-  Zed/=len(z_center)
-  prob=prob/Zed+epsilon
+      dx=np.abs(cv_grid[x]-c)
+      arg=(np.minimum(dx,period-dx)/s)**2
+    prob[x]=np.sum(h*np.maximum(np.exp(-0.5*arg)-val_at_cutoff,0))
+  if not faster:
+    Zed=0
+    for j in range(nker):
+      if period==0:
+        arg=((c[j]-c)/s)**2
+      else:
+        dx=np.abs(c[j]-c)
+        arg=(np.minimum(dx,period-dx)/s)**2
+      Zed+=np.sum(h*np.maximum(np.exp(-0.5*arg)-val_at_cutoff,0))
+    Zed/=nker
+    prob=prob/Zed+epsilon
   norm=1
   if mintozero:
     norm=max(prob)
@@ -173,12 +172,12 @@ for i in range(1,len(center)):
     z_sigma.append(sigma[i])
     z_height.append(height[i])
   if (i+1)%print_stride==0:
-    z_fes=build_fes()
+    z_fes=build_fes(z_center,z_sigma,z_height)
     np.savetxt(current_fes_running%((i+1)*pace_to_time),np.c_[cv_grid,z_fes],header=head,comments='',fmt='%14.9f')
 print(' total kernels read from file: %d'%len(center))
 print(' total kernels in compressed FES: %d'%len(z_center))
 
 #build and print final
-z_fes=build_fes()
+z_fes=build_fes(z_center,z_sigma,z_height)
 np.savetxt(outfile,np.c_[cv_grid,z_fes],header=head,comments='',fmt='%14.9f')
 
