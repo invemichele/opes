@@ -22,6 +22,7 @@ parser.add_argument('--max',dest='grid_max',type=float,required=False,help='uppe
 parser.add_argument('--bin',dest='grid_bin',type=int,default=100,help='number of bins for the grid')
 parser.add_argument('--stride',dest='stride',type=int,default=0,help='how often to print running fes')
 parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
+parser.add_argument('--no_der',dest='no_der',action='store_true',default=False,help='skip derivative to run faster')
 parser.add_argument('--faster',dest='faster',action='store_true',default=False,help='run faster, ingoring Zed and the epsilon cutoff')
 parser.add_argument('--outfile',dest='outfile',type=str,default='fes.dat',help='name of the output file')
 args = parser.parse_args()
@@ -30,6 +31,7 @@ filename=args.filename
 kbt=args.kbt
 mintozero=args.mintozero
 faster=args.faster
+calc_der=(not args.no_der)
 
 #get kernels
 f=open(filename)
@@ -68,6 +70,9 @@ if args.angle:
   grid_max=np.pi
   period=2*np.pi
   grid_bin-=1
+  if calc_der:
+    print(' +++ WARNING: derivative is not supported for periodic CV +++')
+    calc_der=False
 if args.grid_min is None:
   grid_min=min(center)
 else:
@@ -134,7 +139,8 @@ def build_fes(c,s,h):
       dx=np.abs(cv_grid[x]-c)
       dist=np.minimum(dx,period-dx)/s
     prob[x]=np.sum(h*np.maximum(np.exp(-0.5*dist**2)-val_at_cutoff,0))
-    der_prob[x]=np.sum(dist/s*h*np.maximum(np.exp(-0.5*dist**2)-val_at_cutoff,0))
+    if calc_der:
+      der_prob[x]=np.sum(dist/s*h*np.maximum(np.exp(-0.5*dist**2)-val_at_cutoff,0))
   if not faster:
     Zed=0
     for j in range(nker):

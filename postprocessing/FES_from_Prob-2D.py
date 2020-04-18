@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-### Get the FES estimate used by OPES from a dumped probability file, 2D only ###
+### Get the FES estimate used by OPES from a dumped probability file (PROB_WFILE), 2D only ###
 # slightly similar to plumed sum_hills
 
 import sys
@@ -9,8 +9,8 @@ import pandas as pd
 import argparse
 
 #parser
-parser = argparse.ArgumentParser(description='get the FES estimate used by OPES from a dumped probability file, 2D only')
-parser.add_argument('--prob',dest='filename',type=str,default='Prob.data',help='the probability file name')
+parser = argparse.ArgumentParser(description='get the FES estimate used by OPES from a dumped PROB_WFILE, 2D only')
+parser.add_argument('--prob',dest='filename',type=str,default='PROB',help='the probability file name')
 parser.add_argument('--kt',dest='kbt',type=float,required=True,help='the temperature in energy units')
 parser.add_argument('--angle1',dest='angle1',action='store_true',default=False,help='the cv1 is an angle in the range [-pi,pi]')
 parser.add_argument('--angle2',dest='angle2',action='store_true',default=False,help='the cv2 is an angle in the range [-pi,pi]')
@@ -18,7 +18,7 @@ parser.add_argument('--min',dest='grid_min',type=str,required=False,help='lower 
 parser.add_argument('--max',dest='grid_max',type=str,required=False,help='upper bounds for the grid')
 parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='number of bins for the grid')
 parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
-parser.add_argument('--no_der',dest='no_der',action='store_true',default=False,help='skip derivative calculation to run faster')
+parser.add_argument('--no_der',dest='no_der',action='store_true',default=False,help='skip derivatives to run faster')
 parser.add_argument('--outfile',dest='outfile',type=str,default='fes.dat',help='name of the output file')
 args = parser.parse_args()
 #parsing
@@ -76,11 +76,17 @@ else:
   grid_max_x=float(args.grid_max.split(',')[0])
   grid_max_y=float(args.grid_max.split(',')[1])
 if args.angle1:
+  if calc_der:
+    print(' +++ WARNING: derivatives are not supported for periodic CVs +++')
+    calc_der=False
   grid_min_x=-np.pi
   grid_max_x=np.pi
   period_x=2*np.pi
   grid_bin_x-=1
 if args.angle2:
+  if calc_der:
+    print(' +++ WARNING: derivatives are not supported for periodic CVs +++')
+    calc_der=False
   grid_min_y=-np.pi
   grid_max_y=np.pi
   period_y=2*np.pi
@@ -102,12 +108,12 @@ for i in range(grid_bin_y):
       dist_x=(x[i,j]-center_x)/sigma_x
     else:
       dx=np.absolute(x[i,j]-center_x)
-      dist_x=np.minimum(dx,period-dx)/sigma_x
+      dist_x=np.minimum(dx,period_x-dx)/sigma_x
     if period_y==0:
       dist_y=(y[i,j]-center_y)/sigma_y
     else:
       dy=np.absolute(y[i,j]-center_y)
-      dist_y=np.minimum(dy,period-dy)/sigma_y
+      dist_y=*np.minimum(dy,period_y-dy)/sigma_y
     arg2=dist_x**2+dist_y**2
     prob[i,j]=np.sum(height*(np.maximum(np.exp(-0.5*arg2)-val_at_cutoff,0)))
     prob[i,j]=prob[i,j]/Zed+epsilon
