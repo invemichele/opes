@@ -139,8 +139,8 @@ else:
 for i in range(grid_bin_y):
   for j in range(grid_bin_x):
     if calc_der:
-      print(x[i,j],y[i,j],-kbt*np.log(prob[i,j]/max_prob),0-kbt/prob[i,j]*der_prob_x[i,j],0-kbt/prob[i,j]*der_prob_y[i,j],file=output)
+      print(x[i,j],y[i,j],0-kbt*np.log(prob[i,j]/max_prob),0-kbt/prob[i,j]*der_prob_x[i,j],0-kbt/prob[i,j]*der_prob_y[i,j],file=output)
     else:
-      print(x[i,j],y[i,j],-kbt*np.log(prob[i,j]/max_prob),file=output)
+      print(x[i,j],y[i,j],0-kbt*np.log(prob[i,j]/max_prob),file=output)
   print('',file=output)
 output.close()

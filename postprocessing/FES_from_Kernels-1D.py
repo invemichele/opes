@@ -150,7 +150,7 @@ def build_fes(c,s,h):
   norm=1
   if mintozero:
     norm=max(prob)
-  return -kbt*np.log(prob/norm),-kbt/prob*der_prob
+  return 0-kbt*np.log(prob/norm),0-kbt/prob*der_prob #adding zero avoids printing -0
 
 # compression
 for i in range(1,len(center)):
