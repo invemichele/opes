@@ -170,7 +170,7 @@ void OPESwt::registerKeywords(Keywords& keys) {
            " Set to 'inf' for uniform flat target");
   keys.add("optional","EPSILON","the value of the regularization constant for the probability");
   keys.add("optional","KERNEL_CUTOFF","truncate kernels at this distance (in units of sigma)");
-  keys.add("optional","ADAPTIVE_SIGMA_STRIDE","stride for measuring adaptive sigma. Default is 10 PACE");
+  keys.add("optional","ADAPTIVE_SIGMA_STRIDE","number of steps for measuring adaptive sigma. Default is 10xPACE");
   keys.addFlag("NO_ZED",false,"do not normalize over the explored CV space, \\f$Z_n=1\\f$");
   keys.addFlag("FIXED_SIGMA",false,"do not decrease sigma as simulation goes on");
   keys.addFlag("RECURSIVE_MERGE_OFF",false,"do not recursively attempt kernel merging when a new one is added. Faster, but total number of compressed kernels might grow and slow down things");
@@ -183,7 +183,7 @@ void OPESwt::registerKeywords(Keywords& keys) {
   keys.add("optional","PROB_WSTRIDE","write the estimated probability to a file every N steps");
   keys.addFlag("STORE_PROBS",false,"store all the probability files the calculation generates. They are overwritten if this keyword is not present");
 //miscellaneous
-  keys.addFlag("WALKERS_MPI",false,"Switch on MPI version of multiple walkers");
+  keys.addFlag("WALKERS_MPI",false,"switch on MPI version of multiple walkers");
   keys.addFlag("SERIAL",false,"perform calculations in serial. Might be faster for small number of kernels e.g. if only one CV is used");
   keys.use("RESTART");
 
