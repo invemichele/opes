@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-### Create a reweighted FES ###
+### home-made sum_hills + real rct ###
 
 import sys
 import numpy as np
