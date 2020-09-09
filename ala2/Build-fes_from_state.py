@@ -1,13 +1,13 @@
 #! /usr/bin/env python3
 
-### Create a reweighted FES ###
+### Create a reweighted FES from a state file ###
 
 import sys
 import numpy as np
 import pandas as pd
 
 if len(sys.argv)<2:
-  sys.exit(' I need the filename of the kernels to build the fes')
+  sys.exit(' I need the filename of the compressed kernels to build the fes')
 
 #setup
 Kb=0.0083144621 #kj/mol

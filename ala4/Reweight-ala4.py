@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-### Create a reweighted FES ###
+### Create a reweighted FES from Colvar ###
 
 import sys
 import numpy as np

@@ -8,21 +8,21 @@ stride=20
 tot=`ls Kernels.*.data |wc -l`
 for i in  `seq 0 $((tot-1))`
 do
-  echo " getting prob ${i}..."
-  bck.meup.sh Prob_running.${i}
-  mkdir Prob_running.${i}
-  awk -v i=$i '{if ($2=="FIELDS") outname=sprintf("Prob_running.%d/prob_running-%d.data",i,++n); print $0 > outname }' ${bck}Prob.${i}.data
+  echo " getting state ${i}..."
+  bck.meup.sh State_running.${i}
+  mkdir State_running.${i}
+  awk -v i=$i '{if ($2=="FIELDS") outname=sprintf("State_running.%d/state_running-%d.data",i,++n); print $0 > outname }' ${bck}State.${i}.data
 
   bck.meup.sh fes_running.${i} fes_running.${i}.data fes_deltaF.${i}.data
   echo "#time deltaF" > fes_deltaF.${i}.data
   mkdir fes_running.${i}
   t=0
-  for f in `ls -v Prob_running.${i}/*`
+  for f in `ls -v State_running.${i}/*`
   do
     t=$((t+stride))
     outfile="fes_running.${i}/fes_running.t-${t}.data"
     echo -en " $outfile \r"
-    ./Build-fes_from_prob.py $f > $outfile
+    ./Build-fes_from_state.py $f > $outfile
     head -1 $outfile |awk -v time=$t '{print time,$4}' >> fes_deltaF.${i}.data
   done
   cp `ls -v fes_running.${i}/* |tail -1` fes_running.${i}.data

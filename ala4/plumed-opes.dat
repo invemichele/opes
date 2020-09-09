@@ -17,9 +17,9 @@ OPES_WT ...
   SIGMA=0.15,0.15,0.15,0.15,0.15,0.15
   BARRIER=50
   BIASFACTOR=10
-  PROB_WFILE=Prob.data
-  PROB_WSTRIDE=500000
-  STORE_PROBS
+  STATE_WFILE=State.data
+  STATE_WSTRIDE=500000
+  STORE_STATES
 ... OPES_WT
 
 # Since we are in 6D it is convenient to print the colvar more often
