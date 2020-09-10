@@ -377,7 +377,7 @@ OPESwt::OPESwt(const ActionOptions& ao)
       if(stateRestart)
         log.printf("    it should be a STATE file (not a KERNELS file)\n");
       else
-        log.printf(" +++ WARNING +++ restarting from KERNELS might be approximate, use STATE_WFILE and STATE_RFILE to restart from the exact state\n");
+        log.printf(" +++ WARNING +++ RESTART from KERNELS might be approximate, use STATE_WFILE and STATE_RFILE to restart from the exact state\n");
       std::string old_biasfactor_str;
       ifile.scanField("biasfactor",old_biasfactor_str);
       if(old_biasfactor_str=="inf" || old_biasfactor_str=="INF")
@@ -514,9 +514,18 @@ OPESwt::OPESwt(const ActionOptions& ao)
       ifile.close();
     }
     else
-      log.printf(" +++ WARNING +++ restart requested, but file '%s' was not found!\n",restartFileName.c_str());
+    { //same behaviour as METAD
+      std::string not_found_msg="RESTART requested, but file '"+restartFileName+"' was not found!";
+      if(stateRestart)
+        error(not_found_msg);
+      else
+        log.printf(" +++ WARNING +++ %s\n",not_found_msg.c_str());
+    }
   }
-//sync all walkers to avoid opening files before reding is over (see also METAD)
+  else if(restartFileName.length()>0)
+    log.printf(" +++ WARNING +++ the provided STATE_RFILE will be ignored, since RESTART was not requested\n");
+
+//sync all walkers to avoid opening files before reading is over (see also METAD)
   comm.Barrier();
   if(comm.Get_rank()==0 && walkers_mpi)
     multi_sim_comm.Barrier();
