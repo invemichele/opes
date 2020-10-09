@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 ### Create a reweighted FES from a state file ###
+# see ../postprocessing/FES_from_State-2D.py for a more updated version
 
 import sys
 import numpy as np
@@ -25,6 +26,7 @@ f=open(filename)
 line=f.readline()
 if len(line.split())!=8:
   sys.exit('  something is wrong with file'+filename)
+line=f.readline() #action
 line=f.readline() #biasfactor
 line=f.readline() #epsilon
 epsilon=float(line.split()[-1])

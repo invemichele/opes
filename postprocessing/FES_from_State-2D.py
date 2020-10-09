@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-### Get the FES estimate used by OPES_WT from a dumped state file (STATE_WFILE), 2D only ###
+### Get the FES estimate used by OPES_METAD from a dumped state file (STATE_WFILE), 2D only ###
 # slightly similar to plumed sum_hills
 
 import sys
@@ -35,14 +35,14 @@ if len(line.split())!=8:
 cv1name=line.split()[3]
 cv2name=line.split()[4]
 line=f.readline() #action
-if line.split()[-1]=="OPES_WT":
+if line.split()[-1]=="OPES_METAD_state":
   explore=False
-  print(' building free energy from OPES_WT')
-elif line.split()[-1]=="OPES_WT_EXPLORE":
+  print(' building free energy from OPES_METAD')
+elif line.split()[-1]=="OPES_METAD_EXPLORE_state":
   explore=True
-  print(' building free energy from OPES_WT_EXPLORE')
+  print(' building free energy from OPES_METAD_EXPLORE')
 else:
-  sys.exit("This script works onyl with OPES_WT and OPER_WT_EXPLORE")
+  sys.exit("This script works only with OPES_METAD_state and OPES_METAD_EXPLORE_state")
 line=f.readline() #biasfactor
 if explore:
   kbt*=float(line.split()[-1])

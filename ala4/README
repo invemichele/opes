@@ -1,1 +1,6 @@
 for Colvar files see ../figures/figS7.ala4-colvar_*
+
+Notice that the OPES_METAD simulation will sensibly slow down as time passes, due to the great number of kernels needed in 6D.
+This is even more noticeable since the system is small and most of the computation is done by PLUMED. It also runs on a single core, thus the the kernels summation cannot be parallelized.
+In the TODO list is to add a neighbor list, to avoid this issue.
+In the meantime one can play around, e.g. stop the simulation if the system is diffusive and use a static bias (restart with huge PACE) or restart with FIXED_SIGMA, or increase the COMPRESSION_THRESHOLD.

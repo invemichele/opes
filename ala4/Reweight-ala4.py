@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 ### Create a reweighted FES from Colvar ###
+# you can use PLUMED HISTOGRAM and REWEIGHT_BIAS if you prefer
 
 import sys
 import numpy as np

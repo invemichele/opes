@@ -1,11 +1,9 @@
 # vim:ft=plumed
-LOAD FILE=../OPESwt.cpp
 
 phi: TORSION ATOMS=5,7,9,15
 psi: TORSION ATOMS=7,9,15,17
 
-OPES_WT ...
-  LABEL=opes
+opes: OPES_METAD ...
   ARG=phi,psi
   FILE=Kernels.data
   TEMP=300.0
@@ -16,15 +14,15 @@ OPES_WT ...
   STATE_WFILE=State.data
   STATE_WSTRIDE=10000
   STORE_STATES
-... OPES_WT
+...
 
 PRINT FMT=%g STRIDE=500 FILE=Colvar.data ARG=phi,psi,opes.*
 
 ENDPLUMED
 
-A better performing result can be obtained with the following simpler input:
+A slightly better performing result can be obtained with the following simpler input:
 
-  opes: OPES_WT ARG=phi,psi PACE=50 BARRIER=50
+  opes: OPES_METAD ARG=phi,psi PACE=50 BARRIER=50
 
 but it was not used, to have a more fair comparison with standard metadynamics ala2 simulations.
 (if not set, SIGMA is chosen adaptively, similarly to METAD ADAPTIVE=DIFF)

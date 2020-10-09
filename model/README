@@ -1,0 +1,6 @@
+The simulations are setup to run 10x10=100 independent replicas, so to easily estimate the uncertainty.
+To run a single quick test copy inputs/md_intput.dat and inputs/md_potential.dat in the opes-model folder and run:
+
+plumed ves_md_linearexpansion md_input.0.dat 
+
+NB: you need to enamble the ves module in order to run this simulations!

@@ -1,6 +1,7 @@
 #! /usr/bin/env python3
 
 ### Get the running fes estimate used by OPES ###
+# see ../../postprocessing/FES_from_Kernels-1D.py for a more updated version
 
 import sys
 import numpy as np

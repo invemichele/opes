@@ -1,0 +1,4 @@
+The simulation was performed with 10 indipended MPI replicas, to easily estimate the uncertainty.
+For a quick test with a single replica you can run:
+
+gmx mdrun -plumed plumed-opes.dat -s inputs/input.0.tpr
