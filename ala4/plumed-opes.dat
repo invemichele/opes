@@ -28,7 +28,7 @@ ENDPLUMED
 
 A better performing result can be obtained with the following simpler input:
 
-  opes: OPES_METAD ARG=phi1,phi2,phi3,psi1,psi2,psi3 PACE=50 BARRIER=50
+  opes: OPES_METAD ARG=phi1,phi2,phi3,psi1,psi2,psi3 PACE=50 BARRIER=50 NLIST
 
 but it was not used, to have a more fair comparison with standard metadynamics ala2 simulations.
 (if not set, SIGMA is chosen adaptively, similarly to METAD ADAPTIVE=DIFF)
