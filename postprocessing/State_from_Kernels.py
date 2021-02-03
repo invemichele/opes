@@ -2,6 +2,7 @@
 
 ### Generate an OPES STATE file from a KERNELS file ###
 # For postprocessing only, do not use for restarting a simulation
+# (the idea is to fake a restart with the plumed driver and dump the OPES state)
 
 import sys
 import argparse
@@ -72,11 +73,11 @@ f.close()
 #create temporary plumed file
 plumed_input='# vim:ft=plumed\n'
 plumed_input+='RESTART\n'
-plumed_input+='f: FIXEDATOM AT=0,0,0\n'
-plumed_input+='d: DISTANCE ATOMS=f,f\n'
-plumed_input+='COMMITTOR ARG=d BASIN_LL1=-1 BASIN_UL1=1\n'
+plumed_input+='f: FIXEDATOM AT=0,0,0\n' #fake atom
+plumed_input+='d: DISTANCE ATOMS=f,f\n' #unfourtunately the FAKE colvar has issues with PERIODIC
+plumed_input+='COMMITTOR ARG=d BASIN_LL1=-1 BASIN_UL1=1\n' #this will kill the driver
 for i in range(ncv):
-  plumed_input+=cvname[i]+': COMBINE ARG=d PERIODIC='+periodic[i]+'\n'
+  plumed_input+=cvname[i]+': COMBINE ARG=d PERIODIC='+periodic[i]+'\n' #recreate CVs label doesn't work if they have components!
 plumed_input+='opes: '+action
 plumed_input+=' TEMP=1 PACE=1 BARRIER=0'
 plumed_input+=' ARG='+cvname[0]
