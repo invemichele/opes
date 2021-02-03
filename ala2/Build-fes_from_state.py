@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 ### Create a reweighted FES from a state file ###
-# see ../postprocessing/FES_from_State-2D.py for a more updated version
+# see ../postprocessing/FES_from_State.py for a more updated version
 
 import sys
 import numpy as np
