@@ -14,7 +14,7 @@ if use_bck:
 
 #parser
 parser = argparse.ArgumentParser(description='get the FES estimate used by OPES, from a dumped state file (STATE_WFILE). 1D or 2D only')
-parser.add_argument('--state',dest='filename',type=str,default='STATE',help='the state file name, with the compressed kernels')
+parser.add_argument('--state','-f',dest='filename',type=str,default='STATE',help='the state file name, with the compressed kernels')
 parser.add_argument('--kt',dest='kbt',type=float,required=True,help='the temperature in energy units')
 parser.add_argument('--angle1',dest='angle1',action='store_true',default=False,help='the cv1 is an angle in the range [-pi,pi]')
 parser.add_argument('--angle2',dest='angle2',action='store_true',default=False,help='the cv2 is an angle in the range [-pi,pi]')
@@ -24,7 +24,7 @@ parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='num
 parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
 parser.add_argument('--no_der',dest='no_der',action='store_true',default=False,help='skip derivatives to run faster')
 parser.add_argument('--all_stored',dest='all_stored',action='store_true',default=False,help='print all the FES stored instead of only the last one')
-parser.add_argument('--outfile',dest='outfile',type=str,default='fes.dat',help='name of the output file')
+parser.add_argument('--outfile','-o',dest='outfile',type=str,default='fes.dat',help='name of the output file')
 args = parser.parse_args()
 #parsing
 filename=args.filename

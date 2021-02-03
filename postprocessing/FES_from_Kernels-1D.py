@@ -14,7 +14,7 @@ recursive_merge=True
 
 #parser
 parser = argparse.ArgumentParser(description='get the running FES estimate used by OPES, 1D only')
-parser.add_argument('--kernels',dest='filename',type=str,default='KERNELS',help='the kernels file name')
+parser.add_argument('--kernels','-f',dest='filename',type=str,default='KERNELS',help='the kernels file name')
 parser.add_argument('--kt',dest='kbt',type=float,required=True,help='the temperature in energy units')
 parser.add_argument('--angle',dest='angle',action='store_true',default=False,help='the cv is an angle in the range [-pi,pi]')
 parser.add_argument('--min',dest='grid_min',type=float,required=False,help='lower bound for the grid')
@@ -24,7 +24,7 @@ parser.add_argument('--stride',dest='stride',type=int,default=0,help='how often 
 parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
 parser.add_argument('--no_der',dest='no_der',action='store_true',default=False,help='skip derivative to run faster')
 parser.add_argument('--faster',dest='faster',action='store_true',default=False,help='run faster, ingoring Zed and the epsilon cutoff')
-parser.add_argument('--outfile',dest='outfile',type=str,default='fes.dat',help='name of the output file')
+parser.add_argument('--outfile','-o',dest='outfile',type=str,default='fes.dat',help='name of the output file')
 args = parser.parse_args()
 #parsing
 filename=args.filename
