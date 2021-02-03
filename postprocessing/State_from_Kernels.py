@@ -1,6 +1,6 @@
 #! /usr/bin/env python3
 
-### Get an OPES STATE file from a KERNELS file ###
+### Generate an OPES STATE file from a KERNELS file ###
 # For postprocessing only, do not use for restarting a simulation
 
 import sys
@@ -9,7 +9,7 @@ import subprocess
 plumed_exe='plumed'
 
 #parser
-parser = argparse.ArgumentParser(description='get an OPES STATE file from a KERNELS file, so that it can be used with FES_from_State.py. DO NOT use the obtained STATE file for restart')
+parser = argparse.ArgumentParser(description='Generate an OPES STATE file from a KERNELS file, so that it can be used with FES_from_State.py. DO NOT use the obtained STATE file for restart')
 parser.add_argument('--kernels','-f',dest='filename',type=str,default='KERNELS',help='the kernels file name, with the deposited kernels')
 parser.add_argument('--outfile','-o',dest='outfile',type=str,default='STATE',help='name of the output file')
 parser.add_argument('--keep_tmp',dest='keep_tmp',action='store_true',default=False,help='keep the temporary plumed file')
