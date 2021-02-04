@@ -211,19 +211,19 @@ for n in range(len(fields_pos)-1):
     prob=np.zeros(grid_bin_x)
     if calc_der:
       der_prob_x=np.zeros(grid_bin_x)
-      for i in range(grid_bin_x):
-        print('   working...  {:.0%} of '.format(i/grid_bin_x),end='\r')
-        if period_x==0:
-          dist_x=(cv_grid_x[i]-center_x)/sigma_x
-        else:
-          dx=np.absolute(cv_grid_x[i]-center_x)
-          dist_x=np.minimum(dx,period_x-dx)/sigma_x
-        kernels_i=height*(np.maximum(np.exp(-0.5*dist_x*dist_x)-val_at_cutoff,0))
-        prob[i]=np.sum(kernels_i)/Zed+epsilon
-        if calc_der:
-          der_prob_x[i]=np.sum(-dist_x/sigma_x*kernels_i)/Zed
-        if mintozero and prob[i]>max_prob:
-          max_prob=prob[i]
+    for i in range(grid_bin_x):
+      print('   working...  {:.0%} of '.format(i/grid_bin_x),end='\r')
+      if period_x==0:
+        dist_x=(cv_grid_x[i]-center_x)/sigma_x
+      else:
+        dx=np.absolute(cv_grid_x[i]-center_x)
+        dist_x=np.minimum(dx,period_x-dx)/sigma_x
+      kernels_i=height*(np.maximum(np.exp(-0.5*dist_x*dist_x)-val_at_cutoff,0))
+      prob[i]=np.sum(kernels_i)/Zed+epsilon
+      if calc_der:
+        der_prob_x[i]=np.sum(-dist_x/sigma_x*kernels_i)/Zed
+      if mintozero and prob[i]>max_prob:
+        max_prob=prob[i]
   if not mintozero:
     max_prob=1
 
