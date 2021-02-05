@@ -1,36 +1,48 @@
 #! /usr/bin/env python3
 
 ### Get the FES estimate used by OPES, from a dumped state file (STATE_WFILE). 1D or 2D only ###
-# slightly similar to plumed sum_hills
+# usage similar to plumed sum_hills
 
 import sys
 import argparse
 import numpy as np
 import pandas as pd #much faster reading from file
 use_bck=False #requires the bck.meup.sh script
-#use_bck=True
 if use_bck:
   import subprocess
 
-#parser
+### Parser stuff ###
 parser = argparse.ArgumentParser(description='get the FES estimate used by OPES, from a dumped state file (STATE_WFILE). 1D or 2D only')
+# files
 parser.add_argument('--state','-f',dest='filename',type=str,default='STATE',help='the state file name, with the compressed kernels')
-parser.add_argument('--kt',dest='kbt',type=float,required=True,help='the temperature in energy units')
-parser.add_argument('--angle1',dest='angle1',action='store_true',default=False,help='the cv1 is an angle in the range [-pi,pi]')
-parser.add_argument('--angle2',dest='angle2',action='store_true',default=False,help='the cv2 is an angle in the range [-pi,pi]')
+parser.add_argument('--outfile','-o',dest='outfile',type=str,default='fes.dat',help='name of the output file')
+# compulsory
+kbt_group = parser.add_mutually_exclusive_group(required=True)
+kbt_group.add_argument('--kt',dest='kbt',type=float,help='the temperature in energy units')
+kbt_group.add_argument('--temp',dest='temp',type=float,help='the temperature. Energy units is Kj/mol')
+# grid related
 parser.add_argument('--min',dest='grid_min',type=str,required=False,help='lower bounds for the grid')
 parser.add_argument('--max',dest='grid_max',type=str,required=False,help='upper bounds for the grid')
 parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='number of bins for the grid')
-parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
-parser.add_argument('--no_der',dest='no_der',action='store_true',default=False,help='skip derivatives to run faster')
+# other options
+parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
+parser.add_argument('--deltaFat',dest='deltaFat',type=float,required=False,help='calculate the free energy difference between left and right of given c1 value')
 parser.add_argument('--all_stored',dest='all_stored',action='store_true',default=False,help='print all the FES stored instead of only the last one')
-parser.add_argument('--outfile','-o',dest='outfile',type=str,default='fes.dat',help='name of the output file')
-args = parser.parse_args()
-#parsing
-filename=args.filename
-kbt=args.kbt
+parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
+parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
+# some easy parsing
+args=parser.parse_args()
+if args.kbt is not None:
+  kbt=args.kbt
+else:
+  kbt=args.temp*0.0083144621
+fmt=args.fmt
+calc_deltaF=False
+if args.deltaFat is not None:
+  calc_deltaF=True
+ts=args.deltaFat
 mintozero=args.mintozero
-calc_der=(not args.no_der)
+calc_der=args.der
 all_stored=args.all_stored
 if all_stored:
   if args.outfile.rfind('/')==-1:
@@ -49,15 +61,16 @@ else:
   outfile=args.outfile
 explore='unset'
 
-#get data and check number of stored states
-data=pd.read_table(filename,sep='\s+',header=None)
+### Get data ###
+# get data and check number of stored states
+data=pd.read_table(args.filename,sep='\s+',header=None)
 fields_pos=[]
 tot_lines=len(data.iloc[:,1])
 for i in range(tot_lines):
   if data.iloc[i,1]=='FIELDS':
     fields_pos.append(i)
 if len(fields_pos)==0:
-  sys.exit(' no FIELDS found in file "'+filename+'"')
+  sys.exit(' no FIELDS found in file "'+args.filename+'"')
 if len(fields_pos)>1:
   print(' a total of %d stored states where found'%len(fields_pos))
   if all_stored:
@@ -72,13 +85,13 @@ for n in range(len(fields_pos)-1):
   l=fields_pos[n]
   dim2=False
   if len(data.iloc[l,:])==6:
-    cv1name=data.iloc[l,3]
+    name_cv_x=data.iloc[l,3]
   elif len(data.iloc[l,:])==8:
     dim2=True
-    cv1name=data.iloc[l,3]
-    cv2name=data.iloc[l,4]
+    name_cv_x=data.iloc[l,3]
+    name_cv_y=data.iloc[l,4]
   else:
-    sys.exit(' wrong number of FIELDS in file "'+filename+'": only 1 or 2 dimensional bias are supported')
+    sys.exit(' wrong number of FIELDS in file "'+args.filename+'": only 1 or 2 dimensional bias are supported')
   action=data.iloc[l+1,3]
   if action=="OPES_METAD_state":
     if explore!='no':
@@ -114,11 +127,44 @@ for n in range(len(fields_pos)-1):
       sys.exit(' counter not found!')
     Zed*=float(data.iloc[l+9,3])
   l+=10 #there are always at least 10 header lines
+# get periodicity
+  period_x=0
+  period_y=0
   while data.iloc[l,0]=='#!':
+    if data.iloc[l,2]=='min_'+name_cv_x:
+      if data.iloc[l,3]=='-pi':
+        grid_min_x=-np.pi
+      else:
+        grid_min_x=float(data.iloc[l,3])
+      l+=1
+      if data.iloc[l,2]!='max_'+name_cv_x:
+        sys.exit(' min_%s was found, but not max_%s !'%(name_cv_x,name_cv_x))
+      if data.iloc[l,3]=='pi':
+        grid_max_x=np.pi
+      else:
+        grid_max_x=float(data.iloc[l,3])
+      period_x=grid_max_x-grid_min_x
+      if calc_der:
+        sys.exit(' derivatives not supported with periodic CVs, remove --der option')
+    if dim2 and data.iloc[l,2]=='min_'+name_cv_y:
+      if data.iloc[l,3]=='-pi':
+        grid_min_y=-np.pi
+      else:
+        grid_min_y=float(data.iloc[l,3])
+      l+=1
+      if data.iloc[l,2]!='max_'+name_cv_y:
+        sys.exit(' min_%s was found, but not max_%s !'%(name_cv_y,name_cv_y))
+      if data.iloc[l,3]=='pi':
+        grid_max_y=np.pi
+      else:
+        grid_max_y=float(data.iloc[l,3])
+      period_y=grid_max_y-grid_min_y
+      if calc_der:
+        sys.exit(' derivatives not supported with periodic CVs, remove --der option')
     l+=1
   if l==fields_pos[-1]:
     sys.exit(' missing data!')
-#get kernels
+# get kernels
   time=float(data.iloc[l,0])
   center_x=np.array(data.iloc[l:fields_pos[n+1],1],dtype=float)
   if dim2:
@@ -130,59 +176,79 @@ for n in range(len(fields_pos)-1):
     sigma_x=np.array(data.iloc[l:fields_pos[n+1],2],dtype=float)
     height=np.array(data.iloc[l:fields_pos[n+1],3],dtype=float)
 
-#set grid
-  period_x=0
-  grid_bin_x=int(args.grid_bin.split(',')[0])+1
+### Prepare the grid ###
+  grid_bin_x=int(args.grid_bin.split(',')[0])
+  if period_x==0:
+    grid_bin_x+=1 #same as plumed sum_hills
   if args.grid_min is None:
-    grid_min_x=min(center_x)
+    if period_x==0: #otherwise is already set
+      grid_min_x=min(center_x)
   else:
-    grid_min_x=float(args.grid_min.split(',')[0])
+    if args.grid_min.split(',')[0]=='-pi':
+      grid_min_x=-np.pi
+    else:
+      grid_min_x=float(args.grid_min.split(',')[0])
   if args.grid_max is None:
-    grid_max_x=max(center_x)
-  if args.grid_max is None:
-    grid_max_x=max(center_x)
+    if period_x==0: #otherwise is already set
+      grid_max_x=max(center_x)
   else:
-    grid_max_x=float(args.grid_max.split(',')[0])
-  if args.angle1:
-    if calc_der:
-      print(' +++ WARNING: derivatives are not supported for periodic CVs +++')
-      calc_der=False
-    grid_min_x=-np.pi
-    grid_max_x=np.pi
-    period_x=2*np.pi
-    grid_bin_x-=1
+    if args.grid_max.split(',')[0]=='pi':
+      grid_max_x=np.pi
+    else:
+      grid_max_x=float(args.grid_max.split(',')[0])
   cv_grid_x=np.linspace(grid_min_x,grid_max_x,grid_bin_x)
   if dim2:
-    period_y=0
     if len(args.grid_bin.split(','))!=2:
       sys.exit('two comma separated integers expected after --bin')
-    grid_bin_y=int(args.grid_bin.split(',')[1])+1
+    grid_bin_y=int(args.grid_bin.split(',')[1])
+    if period_y==0:
+      grid_bin_y+=1 #same as plumed sum_hills
     if args.grid_min is None:
-      grid_min_y=min(center_y)
+      if period_y==0: #otherwise is already set
+        grid_min_y=min(center_y)
     else:
       if len(args.grid_min.split(','))!=2:
         sys.exit('two comma separated floats expected after --min')
-      grid_min_y=float(args.grid_min.split(',')[1])
+      if args.grid_min.split(',')[1]=='-pi':
+        grid_min_y=-np.pi
+      else:
+        grid_min_y=float(args.grid_min.split(',')[1])
     if args.grid_max is None:
-      grid_max_y=max(center_y)
+      if period_y==0: #otherwise is already set
+        grid_max_y=max(center_y)
     else:
       if len(args.grid_max.split(','))!=2:
         sys.exit('two comma separated floats expected after --max')
-      grid_max_y=float(args.grid_max.split(',')[1])
-    if args.angle2:
-      if calc_der:
-        print(' +++ WARNING: derivatives are not supported for periodic CVs +++')
-        calc_der=False
-      grid_min_y=-np.pi
-      grid_max_y=np.pi
-      period_y=2*np.pi
-      grid_bin_y-=1
+      if args.grid_max.split(',')[1]=='pi':
+        grid_max_y=np.pi
+      else:
+        grid_max_y=float(args.grid_max.split(',')[1])
     cv_grid_y=np.linspace(grid_min_y,grid_max_y,grid_bin_y)
     x,y=np.meshgrid(cv_grid_x,cv_grid_y)
+  if calc_deltaF and (ts<=grid_min_x or ts>=grid_max_x):
+    print(' +++ WARNING: the provided --deltaFat is out of the CV grid +++')
+    calc_deltaF=False
 
-#calculate
+### Calculate FES ###
   max_prob=0
-  if dim2:
+  if not dim2:
+    prob=np.zeros(grid_bin_x)
+    if calc_der:
+      der_prob_x=np.zeros(grid_bin_x)
+    for i in range(grid_bin_x):
+      print('   working...  {:.0%} of '.format(i/grid_bin_x),end='\r')
+      if period_x==0:
+        dist_x=(cv_grid_x[i]-center_x)/sigma_x
+      else:
+        dx=np.absolute(cv_grid_x[i]-center_x)
+        dist_x=np.minimum(dx,period_x-dx)/sigma_x
+      kernels_i=height*(np.maximum(np.exp(-0.5*dist_x*dist_x)-val_at_cutoff,0))
+      prob[i]=np.sum(kernels_i)/Zed+epsilon
+      if calc_der:
+        der_prob_x[i]=np.sum(-dist_x/sigma_x*kernels_i)/Zed
+      if mintozero and prob[i]>max_prob:
+        max_prob=prob[i]
+  else:
     prob=np.zeros((grid_bin_y,grid_bin_x))
     if calc_der:
       der_prob_x=np.zeros((grid_bin_y,grid_bin_x))
@@ -207,27 +273,25 @@ for n in range(len(fields_pos)-1):
           der_prob_y[i,j]=np.sum(-dist_y/sigma_y*kernels_ij)/Zed
         if mintozero and prob[i,j]>max_prob:
           max_prob=prob[i,j]
-  else:
-    prob=np.zeros(grid_bin_x)
-    if calc_der:
-      der_prob_x=np.zeros(grid_bin_x)
-    for i in range(grid_bin_x):
-      print('   working...  {:.0%} of '.format(i/grid_bin_x),end='\r')
-      if period_x==0:
-        dist_x=(cv_grid_x[i]-center_x)/sigma_x
-      else:
-        dx=np.absolute(cv_grid_x[i]-center_x)
-        dist_x=np.minimum(dx,period_x-dx)/sigma_x
-      kernels_i=height*(np.maximum(np.exp(-0.5*dist_x*dist_x)-val_at_cutoff,0))
-      prob[i]=np.sum(kernels_i)/Zed+epsilon
-      if calc_der:
-        der_prob_x[i]=np.sum(-dist_x/sigma_x*kernels_i)/Zed
-      if mintozero and prob[i]>max_prob:
-        max_prob=prob[i]
   if not mintozero:
     max_prob=1
+  fes=-kbt*sf*np.log(prob/max_prob)
+  if calc_der:
+    der_fes_x=-kbt*sf/prob*der_prob_x
+    if dim2:
+      der_fes_y=-kbt*sf/prob*der_prob_y
+# calculate deltaF  
+  if calc_deltaF:
+    if dim2:
+      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
+      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
+    else:
+      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x<ts])
+      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x>ts])
+    deltaF=fesB-fesA
 
-#print out
+### Print to file ###
+# prepare file
   if all_stored:
     outfile_n=outfile%time
   else:
@@ -235,43 +299,45 @@ for n in range(len(fields_pos)-1):
   if use_bck:
     cmd=subprocess.Popen('bck.meup.sh -i '+outfile_n,shell=True)
     cmd.wait()
-  output=open(outfile_n,'w')
-  fmt='% 10.6f'
-  fields='#! FIELDS '+cv1name
+# actual print
+  f=open(outfile_n,'w')
+  fields='#! FIELDS '+name_cv_x
   if dim2:
-    fields+=' '+cv2name
+    fields+=' '+name_cv_y
   fields+=' file.free'
   if calc_der:
-    fields+=' der_'+cv1name
+    fields+=' der_'+name_cv_x
     if dim2:
-      fields+=' der_'+cv2name
-  print(fields,file=output)
-  print('#! SET min_'+cv1name+' '+str(grid_min_x),file=output)
-  print('#! SET max_'+cv1name+' '+str(grid_max_x),file=output)
-  print('#! SET nbins_'+cv1name+' '+str(grid_bin_x),file=output)
+      fields+=' der_'+name_cv_y
+  f.write(fields+'\n')
+  if calc_deltaF:
+    f.write('#! SET DeltaF %g\n'%(deltaF))
+  f.write('#! SET min_'+name_cv_x+' %g\n'%(grid_min_x))
+  f.write('#! SET max_'+name_cv_x+' %g\n'%(grid_max_x))
+  f.write('#! SET nbins_'+name_cv_x+' %g\n'%(grid_bin_x))
   if period_x==0:
-    print('#! SET periodic_'+cv1name+' false',file=output)
+    f.write('#! SET periodic_'+name_cv_x+' false\n')
   else:
-    print('#! SET periodic_'+cv1name+' true',file=output)
-  if dim2:
-    print('#! SET min_'+cv2name+' '+str(grid_min_y),file=output)
-    print('#! SET max_'+cv2name+' '+str(grid_max_y),file=output)
-    print('#! SET nbins_'+cv2name+' '+str(grid_bin_y),file=output)
+    f.write('#! SET periodic_'+name_cv_x+' true\n')
+  if not dim2:
+    for i in range(grid_bin_x):
+      line=(fmt+'  '+fmt)%(grid_cv_x[i],fes[i])
+      if calc_der:
+        line+=(' '+fmt)%(der_fes_x[i])
+      f.write(line+'\n')
+  else:
+    f.write('#! SET min_'+name_cv_y+' %g\n'%(grid_min_y))
+    f.write('#! SET max_'+name_cv_y+' %g\n'%(grid_max_y))
+    f.write('#! SET nbins_'+name_cv_y+' %g\n'%(grid_bin_y))
     if period_y==0:
-      print('#! SET periodic_'+cv2name+' false',file=output)
+      f.write('#! SET periodic_'+name_cv_y+' false\n')
     else:
-      print('#! SET periodic_'+cv2name+' true',file=output)
+      f.write('#! SET periodic_'+name_cv_y+' true\n')
     for i in range(grid_bin_y):
       for j in range(grid_bin_x):
-        line=(fmt+'  '+fmt+'  '+fmt)%(x[i,j],y[i,j],0-kbt*sf*np.log(prob[i,j]/max_prob))
+        line=(fmt+' '+fmt+'  '+fmt)%(x[i,j],y[i,j],fes[i,j])
         if calc_der:
-          line+=('  '+fmt+'  '+fmt)%(0-kbt*sf/prob[i,j]*der_prob_x[i,j],0-kbt*sf/prob[i,j]*der_prob_y[i,j])
-        print(line,file=output)
-      print('',file=output)
-  else:
-      for i in range(grid_bin_x):
-        line=(fmt+'   '+fmt)%(cv_grid_x[i],0-kbt*sf*np.log(prob[i]/max_prob))
-        if calc_der:
-          line+=('  '+fmt)%(0-kbt*sf/prob[i]*der_prob_x[i])
-        print(line,file=output)
-  output.close()
+          line+=(' '+fmt+' '+fmt)%(der_fes_x[i,j],der_fes_y[i,j])
+        f.write(line+'\n')
+      f.write('\n')
+  f.close()
