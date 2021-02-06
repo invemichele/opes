@@ -9,7 +9,6 @@ import argparse
 import numpy as np
 import pandas as pd #much faster reading from file
 use_bck=False #requires the bck.meup.sh script
-#use_bck=True
 if use_bck:
   import subprocess
 
@@ -109,7 +108,7 @@ if dim2:
     print(' cv2 "%s" found at column %d'%(name_cv_y,col_y+1))
     pass
 # get bias
-if args.bias=='NO':
+if args.bias=='NO' or args.bias=='no':
   col_bias=[]
 else:
   try:
@@ -210,7 +209,7 @@ else:
     grid_max_x=np.pi
   else:
     grid_max_x=float(args.grid_max.split(',')[0])
-cv_grid_x=np.linspace(grid_min_x,grid_max_x,grid_bin_x)
+grid_cv_x=np.linspace(grid_min_x,grid_max_x,grid_bin_x)
 fes=np.zeros(grid_bin_x)
 if calc_der:
   der_fes_x=np.zeros(grid_bin_x)
@@ -240,8 +239,8 @@ if dim2:
       grid_max_y=np.pi
     else:
       grid_max_y=float(args.grid_max.split(',')[1])
-  cv_grid_y=np.linspace(grid_min_y,grid_max_y,grid_bin_y)
-  x,y=np.meshgrid(cv_grid_x,cv_grid_y,indexing='ij')
+  grid_cv_y=np.linspace(grid_min_y,grid_max_y,grid_bin_y)
+  x,y=np.meshgrid(grid_cv_x,grid_cv_y,indexing='ij')
   fes=np.zeros((grid_bin_x,grid_bin_y))
   if calc_der:
     der_fes_x=np.zeros((grid_bin_x,grid_bin_y))

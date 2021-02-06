@@ -196,7 +196,7 @@ for n in range(len(fields_pos)-1):
       grid_max_x=np.pi
     else:
       grid_max_x=float(args.grid_max.split(',')[0])
-  cv_grid_x=np.linspace(grid_min_x,grid_max_x,grid_bin_x)
+  grid_cv_x=np.linspace(grid_min_x,grid_max_x,grid_bin_x)
   if dim2:
     if len(args.grid_bin.split(','))!=2:
       sys.exit('two comma separated integers expected after --bin')
@@ -223,8 +223,8 @@ for n in range(len(fields_pos)-1):
         grid_max_y=np.pi
       else:
         grid_max_y=float(args.grid_max.split(',')[1])
-    cv_grid_y=np.linspace(grid_min_y,grid_max_y,grid_bin_y)
-    x,y=np.meshgrid(cv_grid_x,cv_grid_y)
+    grid_cv_y=np.linspace(grid_min_y,grid_max_y,grid_bin_y)
+    x,y=np.meshgrid(grid_cv_x,grid_cv_y)
   if calc_deltaF and (ts<=grid_min_x or ts>=grid_max_x):
     print(' +++ WARNING: the provided --deltaFat is out of the CV grid +++')
     calc_deltaF=False
@@ -238,9 +238,9 @@ for n in range(len(fields_pos)-1):
     for i in range(grid_bin_x):
       print('   working...  {:.0%} of '.format(i/grid_bin_x),end='\r')
       if period_x==0:
-        dist_x=(cv_grid_x[i]-center_x)/sigma_x
+        dist_x=(grid_cv_x[i]-center_x)/sigma_x
       else:
-        dx=np.absolute(cv_grid_x[i]-center_x)
+        dx=np.absolute(grid_cv_x[i]-center_x)
         dist_x=np.minimum(dx,period_x-dx)/sigma_x
       kernels_i=height*(np.maximum(np.exp(-0.5*dist_x*dist_x)-val_at_cutoff,0))
       prob[i]=np.sum(kernels_i)/Zed+epsilon
