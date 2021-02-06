@@ -8,8 +8,8 @@ import sys
 import argparse
 import numpy as np
 import pandas as pd #much faster reading from file
-#use_bck=False #requires the bck.meup.sh script
-use_bck=True
+use_bck=False #requires the bck.meup.sh script
+#use_bck=True
 if use_bck:
   import subprocess
 
@@ -32,10 +32,12 @@ parser.add_argument('--min',dest='grid_min',type=str,required=False,help='lower 
 parser.add_argument('--max',dest='grid_max',type=str,required=False,help='upper bounds for the grid')
 parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='number of bins for the grid')
 # other options
-parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
+parser.add_argument('--stride',dest='stride',type=int,default=0,help='print running FES estimate with this stride')
+parser.add_argument('--nohistory',dest='nohistory',action='store_true',default=False,help='FES at each stride is calculated separately. Useful for block averaging')
 parser.add_argument('--deltaFat',dest='deltaFat',type=float,required=False,help='calculate the free energy difference between left and right of given cv1 value')
 parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
 parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
+parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
 # some easy parsing
 args=parser.parse_args()
 if args.kbt is not None:
@@ -48,6 +50,22 @@ calc_deltaF=False
 if args.deltaFat is not None:
   calc_deltaF=True
 ts=args.deltaFat
+stride=args.stride
+if stride<0:
+  sys.exit(' negative meaningless --stride ',stride)
+if stride!=0:
+  if args.outfile.rfind('/')==-1:
+    prefix=''
+    outfile_it=args.outfile
+  else:
+    prefix=args.outfile[:args.outfile.rfind('/')]
+    outfile_it=args.outfile[args.outfile.rfind('/'):]
+  if outfile_it.rfind('.')==-1:
+    suffix=''
+  else:
+    suffix=outfile_it[outfile_it.rfind('.'):]
+    outfile_it=outfile_it[:outfile_it.rfind('.')]
+  outfile_it=prefix+outfile_it+'_%d'+suffix
 
 ### Get data ###
 # get dim
@@ -74,6 +92,7 @@ except ValueError:
       col_x=i-2
   if col_x==-1:
     sys.exit(' cv "%s" not found'%name_cv_x)
+  print(' cv1 "%s" found at column %d'%(name_cv_x,col_x+1))
   pass
 if dim2:
   try:
@@ -87,6 +106,7 @@ if dim2:
         col_y=i-2
     if col_y==-1:
       sys.exit(' cv "%s" not found'%name_cv_y)
+    print(' cv2 "%s" found at column %d'%(name_cv_y,col_y+1))
     pass
 # get bias
 if args.bias=='NO':
@@ -100,13 +120,15 @@ else:
       for i in range(len(fields)):
         if fields[i].find('.bias')!=-1:
           col_bias.append(i-2)
+          print(' bias "%s" found at columnd %d'%(fields[i],i-1))
     else:
       for j in range(len(args.bias.split(','))):
         for i in range(len(fields)):
           if fields[i]==args.bias.split(',')[j]:
             col_bias.append(i-2)
+            print(' bias "%s" found at columnd %d'%(fields[i],i-1))
       if len(col_bias)!=len(args.bias.split(',')):
-        sys.exit(' found %d matching bias, but %d were requested. Use columns number to avoid ambiguity'%(len(col_bias),len(args.bias.split(','))))
+        sys.exit(' found %d matching biases, but %d were requested. Use columns number to avoid ambiguity'%(len(col_bias),len(args.bias.split(','))))
     pass
 # get periodicity
 period_x=0
@@ -155,20 +177,17 @@ if dim2:
 all_cols=[col_x]+col_bias
 if dim2:
   all_cols=[col_x,col_y]+col_bias
+all_cols.sort() #pandas iloc reads them ordered
 data=pd.read_table(args.filename,dtype=float,sep='\s+',comment='#',header=None,usecols=all_cols)
-cv_x=np.array(data.iloc[:,0])
-it=1
+cv_x=np.array(data.iloc[:,all_cols.index(col_x)])
 if dim2:
-  cv_y=np.array(data.iloc[:,1])
-  it=2
-if len(col_bias)==0:
-  bias=np.zeros(len(cv_x))
-else:
-  bias=np.array(data.iloc[:,it])
-  for i in range(1,len(col_bias)):
-    it+=1
-    bias+=np.array(data.iloc[:,it])
-  bias/=kbt #dimensionless bias
+  cv_y=np.array(data.iloc[:,all_cols.index(col_y)])
+bias=np.zeros(len(cv_x)) #it could be that there is no bias
+for col in col_bias:
+  bias+=np.array(data.iloc[:,all_cols.index(col)])
+bias/=kbt #dimensionless bias
+size=0
+effsize=0
 
 ### Prepare the grid ###
 grid_bin_x=int(args.grid_bin.split(',')[0])
@@ -191,6 +210,9 @@ else:
   else:
     grid_max_x=float(args.grid_max.split(',')[0])
 cv_grid_x=np.linspace(grid_min_x,grid_max_x,grid_bin_x)
+fes=np.zeros(grid_bin_x)
+if calc_der:
+  der_fes_x=np.zeros(grid_bin_x)
 if dim2:
   if len(args.grid_bin.split(','))!=2:
     sys.exit('two comma separated integers expected after --bin')
@@ -218,25 +240,82 @@ if dim2:
     else:
       grid_max_y=float(args.grid_max.split(',')[1])
   cv_grid_y=np.linspace(grid_min_y,grid_max_y,grid_bin_y)
-  x,y=np.meshgrid(cv_grid_x,cv_grid_y)
+  x,y=np.meshgrid(cv_grid_x,cv_grid_y,indexing='ij')
+  fes=np.zeros((grid_bin_x,grid_bin_y))
+  if calc_der:
+    der_fes_x=np.zeros((grid_bin_x,grid_bin_y))
+    der_fes_y=np.zeros((grid_bin_x,grid_bin_y))
+deltaF=0
 if calc_deltaF and (ts<=grid_min_x or ts>=grid_max_x):
   print(' +++ WARNING: the provided --deltaFat is out of the CV grid +++')
   calc_deltaF=False
 
+### Print to file ###
+# prints the grid and size, effsize, deltaF, fes, der_fes
+def printFES(outfilename):
+# backup if necessary
+  if use_bck:
+    cmd=subprocess.Popen('bck.meup.sh -i '+outfilename,shell=True)
+    cmd.wait()
+# actual print
+  f=open(outfilename,'w')
+  fields='#! FIELDS '+name_cv_x
+  if dim2:
+    fields+=' '+name_cv_y
+  fields+=' file.free'
+  if calc_der:
+    fields+=' der_'+name_cv_x
+    if dim2:
+      fields+=' der_'+name_cv_y
+  f.write(fields+'\n')
+  f.write('#! SET sample_size %d\n'%size)
+  f.write('#! SET effective_sample_size %d\n'%effsize)
+  if calc_deltaF:
+    f.write('#! SET DeltaF %g\n'%(deltaF))
+  f.write('#! SET min_'+name_cv_x+' %g\n'%(grid_min_x))
+  f.write('#! SET max_'+name_cv_x+' %g\n'%(grid_max_x))
+  f.write('#! SET nbins_'+name_cv_x+' %g\n'%(grid_bin_x))
+  if period_x==0:
+    f.write('#! SET periodic_'+name_cv_x+' false\n')
+  else:
+    f.write('#! SET periodic_'+name_cv_x+' true\n')
+  if not dim2:
+    for i in range(grid_bin_x):
+      line=(fmt+'  '+fmt)%(grid_cv_x[i],fes[i])
+      if calc_der:
+        line+=(' '+fmt)%(der_fes_x[i])
+      f.write(line+'\n')
+  else:
+    f.write('#! SET min_'+name_cv_y+' %g\n'%(grid_min_y))
+    f.write('#! SET max_'+name_cv_y+' %g\n'%(grid_max_y))
+    f.write('#! SET nbins_'+name_cv_y+' %g\n'%(grid_bin_y))
+    if period_y==0:
+      f.write('#! SET periodic_'+name_cv_y+' false\n')
+    else:
+      f.write('#! SET periodic_'+name_cv_y+' true\n')
+    for i in range(grid_bin_x):
+      for j in range(grid_bin_y):
+        line=(fmt+' '+fmt+'  '+fmt)%(x[i,j],y[i,j],fes[i,j])
+        if calc_der:
+          line+=(' '+fmt+' '+fmt)%(der_fes_x[i,j],der_fes_y[i,j])
+        f.write(line+'\n')
+      f.write('\n')
+  f.close()
+
 ### Calculate FES ###
 # on single grid point
-def calcFESpoint(point_x,point_y=None):
+def calcFESpoint(start,end,point_x,point_y=None):
   if period_x==0:
-    dist_x=(point_x-cv_x)/sigma_x
+    dist_x=(point_x-cv_x[start:end])/sigma_x
   else:
-    dx=np.absolute(point_x-cv_x)
+    dx=np.absolute(point_x-cv_x[start:end])
     dist_x=np.minimum(dx,period_x-dx)/sigma_x
-  arg=bias-0.5*dist_x*dist_x
+  arg=bias[start:end]-0.5*dist_x*dist_x
   if point_y is not None:
     if period_y==0:
-      dist_y=(point_y-cv_y)/sigma_y
+      dist_y=(point_y-cv_y[start:end])/sigma_y
     else:
-      dy=np.absolute(point_y-cv_y)
+      dy=np.absolute(point_y-cv_y[start:end])
       dist_y=np.minimum(dy,period_y-dy)/sigma_y
     arg-=0.5*dist_y*dist_y
   if calc_der:
@@ -252,89 +331,58 @@ def calcFESpoint(point_x,point_y=None):
       return _fes,_der_fes_x,_der_fes_y
   else:
     return -kbt*np.logaddexp.reduce(arg)
+# adjust stride
+len_tot=len(cv_x)
+if stride==0:
+  stride=len_tot
+elif stride>len_tot:
+  stride=len_tot
+s=len_tot%stride #skip some initial point to make it fit
+if s>1:
+  print(' first %d samples discarded to fit with given stride'%s)
+it=1
+for n in range(s+stride,len_tot+1,stride):
+  if stride!=len_tot:
+    print('   working...   0% of {:.0%}'.format(n/(len_tot+1)),end='\r')
 # loop over whole grid
-if not dim2:
-  fes=np.zeros(grid_bin_x)
-  if calc_der:
-    der_fes_x=np.zeros(grid_bin_x)
+  if not dim2:
     for i in range(grid_bin_x):
-      print('   working...  {:.0%} of '.format(i/grid_bin_x),end='\r')
-      fes[i],der_fes_x[i]=calcFESpoint(grid_cv_x[i])
+      print('   working...  {:.0%}'.format(i/grid_bin_x),end='\r')
+      if not calc_der:
+        fes[i]=calcFESpoint(s,n,grid_cv_x[i])
+      else:
+        fes[i],der_fes_x[i]=calcFESpoint(s,n,grid_cv_x[i])
   else:
     for i in range(grid_bin_x):
-      print('   working...  {:.0%} of '.format(i/grid_bin_x),end='\r')
-      fes[i]=calcFESpoint(grid_cv_x[i])
-else:
-  fes=np.zeros((grid_bin_y,grid_bin_x))
-  if calc_der:
-    der_fes_x=np.zeros((grid_bin_y,grid_bin_x))
-    der_fes_y=np.zeros((grid_bin_y,grid_bin_x))
-    for i in range(grid_bin_y):
-      print('   working...  {:.0%} of '.format(i/grid_bin_y),end='\r')
-      for j in range(grid_bin_x):
-        fes[i,j],der_fes_x[i,j],der_fes_y[i,j]=calcFESpoint(x[i,j],y[i,j])
-  else:
-    for i in range(grid_bin_y):
-      print('   working...  {:.0%} of '.format(i/grid_bin_y),end='\r')
-      for j in range(grid_bin_x):
-        fes[i,j]=calcFESpoint(x[i,j],y[i,j])
-if args.mintozero:
-  fes-=np.amin(fes)
+      print('   working...  {:.0%}'.format(i/grid_bin_x),end='\r')
+      for j in range(grid_bin_y):
+        if not calc_der:
+          fes[i,j]=calcFESpoint(s,n,x[i,j],y[i,j])
+        else:
+          fes[i,j],der_fes_x[i,j],der_fes_y[i,j]=calcFESpoint(s,n,x[i,j],y[i,j])
+  if args.mintozero:
+    fes-=np.amin(fes)
+# calculate sample size
+  weights=np.exp(bias[s:n]-np.amax(bias[s:n])) #these are safe to sum
+  size=len(weights)
+  effsize=np.sum(weights)**2/np.sum(weights**2)
 # calculate deltaF
 # NB: summing is as accurate as trapz, and logaddexp avoids overflows
-if calc_deltaF:
-  if not dim2:
-    fesA=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x<ts])
-    fesB=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x>ts])
+  if calc_deltaF:
+    if not dim2:
+      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x<ts])
+      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x>ts])
+    else:
+      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
+      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
+    deltaF=fesB-fesA
+# print to file
+  if stride==len_tot:
+    printFES(args.outfile)
   else:
-    fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
-    fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
-  deltaF=fesB-fesA
-
-### Print to file ###
-# backup if necessary
-if use_bck:
-  cmd=subprocess.Popen('bck.meup.sh -i '+args.outfile,shell=True)
-  cmd.wait()
-# actual print
-f=open(args.outfile,'w')
-fields='#! FIELDS '+name_cv_x
-if dim2:
-  fields+=' '+name_cv_y
-fields+=' file.free'
-if calc_der:
-  fields+=' der_'+name_cv_x
-  if dim2:
-    fields+=' der_'+name_cv_y
-f.write(fields+'\n')
-if calc_deltaF:
-  f.write('#! SET DeltaF %g\n'%(deltaF))
-f.write('#! SET min_'+name_cv_x+' %g\n'%(grid_min_x))
-f.write('#! SET max_'+name_cv_x+' %g\n'%(grid_max_x))
-f.write('#! SET nbins_'+name_cv_x+' %g\n'%(grid_bin_x))
-if period_x==0:
-  f.write('#! SET periodic_'+name_cv_x+' false\n')
-else:
-  f.write('#! SET periodic_'+name_cv_x+' true\n')
-if not dim2:
-  for i in range(grid_bin_x):
-    line=(fmt+'  '+fmt)%(grid_cv_x[i],fes[i])
-    if calc_der:
-      line+=(' '+fmt)%(der_fes_x[i])
-    f.write(line+'\n')
-else:
-  f.write('#! SET min_'+name_cv_y+' %g\n'%(grid_min_y))
-  f.write('#! SET max_'+name_cv_y+' %g\n'%(grid_max_y))
-  f.write('#! SET nbins_'+name_cv_y+' %g\n'%(grid_bin_y))
-  if period_y==0:
-    f.write('#! SET periodic_'+name_cv_y+' false\n')
-  else:
-    f.write('#! SET periodic_'+name_cv_y+' true\n')
-  for i in range(grid_bin_y):
-    for j in range(grid_bin_x):
-      line=(fmt+' '+fmt+'  '+fmt)%(x[i,j],y[i,j],fes[i,j])
-      if calc_der:
-        line+=(' '+fmt+' '+fmt)%(der_fes_x[i,j],der_fes_y[i,j])
-      f.write(line+'\n')
-    f.write('\n')
-f.close()
+    printFES(outfile_it%it)
+    it+=1
+# advance stride
+  if args.nohistory:
+    s=n
+print('')
