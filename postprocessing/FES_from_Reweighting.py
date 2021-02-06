@@ -186,6 +186,7 @@ bias=np.zeros(len(cv_x)) #it could be that there is no bias
 for col in col_bias:
   bias+=np.array(data.iloc[:,all_cols.index(col)])
 bias/=kbt #dimensionless bias
+del data
 size=0
 effsize=0
 
@@ -385,4 +386,4 @@ for n in range(s+stride,len_tot+1,stride):
 # advance stride
   if args.nohistory:
     s=n
-print('')
+print('                     ')
