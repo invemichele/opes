@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 
 ### Get the FES estimate used by OPES, from a dumped state file (STATE_WFILE). 1D or 2D only ###
-# usage similar to plumed sum_hills
+# usage is similar to plumed sum_hills
 
 import sys
 import argparse
@@ -281,13 +281,14 @@ for n in range(len(fields_pos)-1):
     if dim2:
       der_fes_y=-kbt*sf/prob*der_prob_y
 # calculate deltaF  
+# NB: summing is as accurate as trapz, and logaddexp avoids overflows
   if calc_deltaF:
-    if dim2:
-      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
-      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
-    else:
+    if not dim2:
       fesA=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x<ts])
       fesB=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x>ts])
+    else:
+      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
+      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
     deltaF=fesB-fesA
 
 ### Print to file ###
