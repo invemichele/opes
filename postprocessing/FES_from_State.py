@@ -28,7 +28,7 @@ parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='num
 parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
 parser.add_argument('--deltaFat',dest='deltaFat',type=float,required=False,help='calculate the free energy difference between left and right of given c1 value')
 parser.add_argument('--all_stored',dest='all_stored',action='store_true',default=False,help='print all the FES stored instead of only the last one')
-parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
+parser.add_argument('--nomintozero',dest='nomintozero',action='store_true',default=False,help='do not shift the minimum to zero')
 parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
 # some easy parsing
 args=parser.parse_args()
@@ -41,7 +41,7 @@ calc_deltaF=False
 if args.deltaFat is not None:
   calc_deltaF=True
 ts=args.deltaFat
-mintozero=args.mintozero
+mintozero=(not args.nomintozero)
 calc_der=args.der
 all_stored=args.all_stored
 if all_stored:

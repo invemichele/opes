@@ -20,21 +20,25 @@ parser.add_argument('--colvar','-f',dest='filename',type=str,default='COLVAR',he
 parser.add_argument('--outfile','-o',dest='outfile',type=str,default='fes_rew.dat',help='name of the output file')
 # compulsory
 parser.add_argument('--sigma','-s',dest='sigma',type=str,required=True,help='the bandwidth for the kernel density estimation. Use e.g. the last value of sigma from an OPES_METAD simulation')
-kbt_group = parser.add_mutually_exclusive_group(required=True)
+kbt_group=parser.add_mutually_exclusive_group(required=True)
 kbt_group.add_argument('--kt',dest='kbt',type=float,help='the temperature in energy units')
 kbt_group.add_argument('--temp',dest='temp',type=float,help='the temperature. Energy units is Kj/mol')
 # input columns
 parser.add_argument('--cv',dest='cv',type=str,default='2',help='the CVs to be used. Either by name or by column number, starting from 1')
 parser.add_argument('--bias',dest='bias',type=str,default='.bias',help='the bias to be used. Either by name or by column number, starting from 1. Set to NO for nonweighted KDE')
 # grid related
-parser.add_argument('--min',dest='grid_min',type=str,required=False,help='lower bounds for the grid')
-parser.add_argument('--max',dest='grid_max',type=str,required=False,help='upper bounds for the grid')
+parser.add_argument('--min',dest='grid_min',type=str,help='lower bounds for the grid')
+parser.add_argument('--max',dest='grid_max',type=str,help='upper bounds for the grid')
 parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='number of bins for the grid')
+# blocks
+split_group=parser.add_mutually_exclusive_group(required=False)
+split_group.add_argument('--blocks',dest='blocks_num',type=int,default=1,help='calculate errors with block average, using this number of blocks')
+split_group.add_argument('--stride',dest='stride',type=int,default=0,help='print running FES estimate with this stride. Use --blocks for stride without history')
+#parser.add_argument('--nohistory',dest='nohistory',action='store_true',default=False,help='FES at each stride is calculated separately. Useful for block averaging')
 # other options
-parser.add_argument('--stride',dest='stride',type=int,default=0,help='print running FES estimate with this stride')
-parser.add_argument('--nohistory',dest='nohistory',action='store_true',default=False,help='FES at each stride is calculated separately. Useful for block averaging')
-parser.add_argument('--deltaFat',dest='deltaFat',type=float,required=False,help='calculate the free energy difference between left and right of given cv1 value')
-parser.add_argument('--mintozero',dest='mintozero',action='store_true',default=False,help='shift the minimum to zero')
+parser.add_argument('--deltaFat',dest='deltaFat',type=float,help='calculate the free energy difference between left and right of given cv1 value')
+parser.add_argument('--skiprows',dest='skiprows',type=int,default=0,help='skip this number of initial rows')
+parser.add_argument('--nomintozero',dest='nomintozero',action='store_true',default=False,help='do not shift the minimum to zero')
 parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
 parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
 # some easy parsing
@@ -49,22 +53,6 @@ calc_deltaF=False
 if args.deltaFat is not None:
   calc_deltaF=True
 ts=args.deltaFat
-stride=args.stride
-if stride<0:
-  sys.exit(' negative meaningless --stride ',stride)
-if stride!=0:
-  if args.outfile.rfind('/')==-1:
-    prefix=''
-    outfile_it=args.outfile
-  else:
-    prefix=args.outfile[:args.outfile.rfind('/')]
-    outfile_it=args.outfile[args.outfile.rfind('/'):]
-  if outfile_it.rfind('.')==-1:
-    suffix=''
-  else:
-    suffix=outfile_it[outfile_it.rfind('.'):]
-    outfile_it=outfile_it[:outfile_it.rfind('.')]
-  outfile_it=prefix+outfile_it+'_%d'+suffix
 
 ### Get data ###
 # get dim
@@ -132,14 +120,17 @@ else:
 # get periodicity
 period_x=0
 period_y=0
+header_lines=1
 line=f.readline().split()
 while line[0]=='#!':
+  header_lines+=1
   if line[2]=='min_'+name_cv_x:
     if line[3]=='-pi':
       grid_min_x=-np.pi
     else:
       grid_min_x=float(line[3])
     line=f.readline().split()
+    header_lines+=1
     if line[2]!='max_'+name_cv_x:
       sys.exit(' min_%s was found, but not max_%s !'%(name_cv_x,name_cv_x))
     if line[3]=='pi':
@@ -155,6 +146,7 @@ while line[0]=='#!':
     else:
       grid_min_y=float(line[3])
     line=f.readline().split()
+    header_lines+=1
     if line[2]!='max_'+name_cv_y:
       sys.exit(' min_%s was found, but not max_%s !'%(name_cv_y,name_cv_y))
     if line[3]=='pi':
@@ -166,6 +158,7 @@ while line[0]=='#!':
       sys.exit(' derivatives not supported with periodic CVs, remove --der option')
   line=f.readline().split()
 f.close()
+skipme=header_lines+args.skiprows
 # get sigma
 sigma_x=float(args.sigma.split(',')[0])
 if dim2:
@@ -177,7 +170,7 @@ all_cols=[col_x]+col_bias
 if dim2:
   all_cols=[col_x,col_y]+col_bias
 all_cols.sort() #pandas iloc reads them ordered
-data=pd.read_table(args.filename,dtype=float,sep='\s+',comment='#',header=None,usecols=all_cols)
+data=pd.read_table(args.filename,dtype=float,sep='\s+',comment='#',header=None,usecols=all_cols,skiprows=skipme)
 cv_x=np.array(data.iloc[:,all_cols.index(col_x)])
 if dim2:
   cv_y=np.array(data.iloc[:,all_cols.index(col_y)])
@@ -195,7 +188,7 @@ if period_x==0:
   grid_bin_x+=1 #same as plumed sum_hills
 if args.grid_min is None:
   if period_x==0: #otherwise is already set
-    grid_min_x=min(center_x)
+    grid_min_x=min(cv_x)
 else:
   if args.grid_min.split(',')[0]=='-pi':
     grid_min_x=-np.pi
@@ -203,7 +196,7 @@ else:
     grid_min_x=float(args.grid_min.split(',')[0])
 if args.grid_max is None:
   if period_x==0: #otherwise is already set
-    grid_max_x=max(center_x)
+    grid_max_x=max(cv_x)
 else:
   if args.grid_max.split(',')[0]=='pi':
     grid_max_x=np.pi
@@ -251,13 +244,54 @@ if calc_deltaF and (ts<=grid_min_x or ts>=grid_max_x):
   calc_deltaF=False
 
 ### Print to file ###
-# prints the grid and size, effsize, deltaF, fes, der_fes
-def printFES(outfilename):
-# backup if necessary
+# setup blocks if needed
+len_tot=len(cv_x)
+block_av=False
+blocks_num=args.blocks_num
+stride=args.stride
+if blocks_num!=1:
+  if calc_der:
+    sys.exit(' derivatives not supported with --blocks, remove --der option')
+  block_av=True
+  stride=int(np.floor(len_tot/blocks_num))
+  block_weight=np.zeros(blocks_num)
+  fes_all=np.zeros((blocks_num,)+np.shape(fes))
+if stride==0 or stride>len_tot:
+  stride=len_tot
+if stride!=len_tot:
+  blocks_num=int(np.floor(len_tot/stride))
+  print(' printing %d fes files'%(blocks_num))
+  if args.outfile.rfind('/')==-1:
+    prefix=''
+    outfile_it=args.outfile
+  else:
+    prefix=args.outfile[:args.outfile.rfind('/')]
+    outfile_it=args.outfile[args.outfile.rfind('/'):]
+  if outfile_it.rfind('.')==-1:
+    suffix=''
+  else:
+    suffix=outfile_it[outfile_it.rfind('.'):]
+    outfile_it=outfile_it[:outfile_it.rfind('.')]
+  outfile_it=prefix+outfile_it+'_%d'+suffix
+
+# print function needs the grid and size, effsize, fes, der_fes
+def printFES(outfilename,uncertainty=False):
   if use_bck:
     cmd=subprocess.Popen('bck.meup.sh -i '+outfilename,shell=True)
     cmd.wait()
-# actual print
+  if not args.nomintozero:
+    shift=np.amin(fes)
+# calculate deltaF
+# NB: summing is as accurate as trapz, and logaddexp avoids overflows
+  if calc_deltaF:
+    if not dim2:
+      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x<ts])
+      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x>ts])
+    else:
+      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
+      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
+    deltaF=fesB-fesA
+#actual printing
   f=open(outfilename,'w')
   fields='#! FIELDS '+name_cv_x
   if dim2:
@@ -281,9 +315,11 @@ def printFES(outfilename):
     f.write('#! SET periodic_'+name_cv_x+' true\n')
   if not dim2:
     for i in range(grid_bin_x):
-      line=(fmt+'  '+fmt)%(grid_cv_x[i],fes[i])
+      line=(fmt+'  '+fmt)%(grid_cv_x[i],fes[i]-shift)
       if calc_der:
         line+=(' '+fmt)%(der_fes_x[i])
+      elif uncertainty:
+        line+=(' '+fmt)%(fes_err[i])
       f.write(line+'\n')
   else:
     f.write('#! SET min_'+name_cv_y+' %g\n'%(grid_min_y))
@@ -295,9 +331,11 @@ def printFES(outfilename):
       f.write('#! SET periodic_'+name_cv_y+' true\n')
     for i in range(grid_bin_x):
       for j in range(grid_bin_y):
-        line=(fmt+' '+fmt+'  '+fmt)%(x[i,j],y[i,j],fes[i,j])
+        line=(fmt+' '+fmt+'  '+fmt)%(x[i,j],y[i,j],fes[i,j]-shift)
         if calc_der:
           line+=(' '+fmt+' '+fmt)%(der_fes_x[i,j],der_fes_y[i,j])
+        elif uncertainty:
+          line+=(' '+fmt)%(fes_err[i,j])
         f.write(line+'\n')
       f.write('\n')
   f.close()
@@ -332,11 +370,6 @@ def calcFESpoint(start,end,point_x,point_y=None):
   else:
     return -kbt*np.logaddexp.reduce(arg)
 # adjust stride
-len_tot=len(cv_x)
-if stride==0:
-  stride=len_tot
-elif stride>len_tot:
-  stride=len_tot
 s=len_tot%stride #skip some initial point to make it fit
 if s>1:
   print(' first %d samples discarded to fit with given stride'%s)
@@ -360,29 +393,30 @@ for n in range(s+stride,len_tot+1,stride):
           fes[i,j]=calcFESpoint(s,n,x[i,j],y[i,j])
         else:
           fes[i,j],der_fes_x[i,j],der_fes_y[i,j]=calcFESpoint(s,n,x[i,j],y[i,j])
-  if args.mintozero:
-    fes-=np.amin(fes)
 # calculate sample size
   weights=np.exp(bias[s:n]-np.amax(bias[s:n])) #these are safe to sum
   size=len(weights)
   effsize=np.sum(weights)**2/np.sum(weights**2)
-# calculate deltaF
-# NB: summing is as accurate as trapz, and logaddexp avoids overflows
-  if calc_deltaF:
-    if not dim2:
-      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x<ts])
-      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x>ts])
-    else:
-      fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
-      fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
-    deltaF=fesB-fesA
 # print to file
   if stride==len_tot:
     printFES(args.outfile)
   else:
     printFES(outfile_it%it)
+    if block_av:
+      block_weight[it-1]=np.sum(weights)
+      fes_all[it-1]=fes
+      s=n #do not include previous samples
     it+=1
-# advance stride
-  if args.nohistory:
-    s=n
-print('                     ')
+if block_av:
+  print(' printing block average to',args.outfile)
+  start=len_tot%stride
+  size=len_tot-start
+  weights=np.exp(bias[start:]-np.amax(bias[start:]))
+  effsize=np.sum(weights)**2/np.sum(weights**2)
+  blocks_neff=np.sum(block_weight)**2/np.sum(block_weight**2)
+  print(' number of blocsk is %d, while effective number is %g'%(blocks_num,blocks_neff))
+  fes=np.average(fes_all,axis=0,weights=block_weight)
+  blocks_var=blocks_neff/(blocks_neff-1)*np.average((fes_all-fes)**2,axis=0,weights=block_weight)
+  fes_err=np.sqrt(blocks_var/blocks_neff)
+  printFES(args.outfile,True)
+print('                              ')
