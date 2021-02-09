@@ -34,29 +34,40 @@ parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='num
 split_group=parser.add_mutually_exclusive_group(required=False)
 split_group.add_argument('--blocks',dest='blocks_num',type=int,default=1,help='calculate errors with block average, using this number of blocks')
 split_group.add_argument('--stride',dest='stride',type=int,default=0,help='print running FES estimate with this stride. Use --blocks for stride without history')
-#parser.add_argument('--nohistory',dest='nohistory',action='store_true',default=False,help='FES at each stride is calculated separately. Useful for block averaging')
 # other options
 parser.add_argument('--deltaFat',dest='deltaFat',type=float,help='calculate the free energy difference between left and right of given cv1 value')
 parser.add_argument('--skiprows',dest='skiprows',type=int,default=0,help='skip this number of initial rows')
 parser.add_argument('--nomintozero',dest='nomintozero',action='store_true',default=False,help='do not shift the minimum to zero')
 parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
 parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
-# some easy parsing
+# parse everything, for better compatibility
 args=parser.parse_args()
+filename=args.filename
+outfile=args.outfile
+args_sigma=args.sigma
 if args.kbt is not None:
   kbt=args.kbt
 else:
   kbt=args.temp*0.0083144621
-fmt=args.fmt
-calc_der=args.der
+args_cv=args.cv
+args_bias=args.bias
+args_grid_min=args.grid_min
+args_grid_max=args.grid_max
+args_grid_bin=args.grid_bin
+blocks_num=args.blocks_num
+stride=args.stride
 calc_deltaF=False
 if args.deltaFat is not None:
   calc_deltaF=True
 ts=args.deltaFat
+args_skiprows=args.skiprows
+mintozero=(not args.nomintozero)
+calc_der=args.der
+fmt=args.fmt
 
 ### Get data ###
 # get dim
-dim=len(args.cv.split(','))
+dim=len(args_cv.split(','))
 if dim==1:
   dim2=False
 elif dim==2:
@@ -64,16 +75,16 @@ elif dim==2:
 else:
   sys.exit(' only 1D and 2D are supported')
 # get cvs
-f=open(args.filename,'r')
+f=open(filename,'r')
 fields=f.readline().split()
 if fields[1]!='FIELDS':
-  sys.exit(' no FIELDS found in "%s"'%args.filename)
+  sys.exit(' no FIELDS found in "%s"'%filename)
 try:
-  col_x=int(args.cv.split(',')[0])-1
+  col_x=int(args_cv.split(',')[0])-1
   name_cv_x=fields[col_x+2]
 except ValueError:
   col_x=-1
-  name_cv_x=args.cv.split(',')[0]
+  name_cv_x=args_cv.split(',')[0]
   for i in range(len(fields)):
     if fields[i]==name_cv_x:
       col_x=i-2
@@ -83,11 +94,11 @@ except ValueError:
   pass
 if dim2:
   try:
-    col_y=int(args.cv.split(',')[1])-1
+    col_y=int(args_cv.split(',')[1])-1
     name_cv_y=fields[col_y+2]
   except ValueError:
     col_y=-1
-    name_cv_y=args.cv.split(',')[1]
+    name_cv_y=args_cv.split(',')[1]
     for i in range(len(fields)):
       if fields[i]==name_cv_y:
         col_y=i-2
@@ -96,26 +107,26 @@ if dim2:
     print(' cv2 "%s" found at column %d'%(name_cv_y,col_y+1))
     pass
 # get bias
-if args.bias=='NO' or args.bias=='no':
+if args_bias=='NO' or args_bias=='no':
   col_bias=[]
 else:
   try:
-    col_bias=[int(col)-1 for col in args.bias.split(',')]
+    col_bias=[int(col)-1 for col in args_bias.split(',')]
   except ValueError:
     col_bias=[]
-    if args.bias=='.bias':
+    if args_bias=='.bias':
       for i in range(len(fields)):
         if fields[i].find('.bias')!=-1:
           col_bias.append(i-2)
           print(' bias "%s" found at columnd %d'%(fields[i],i-1))
     else:
-      for j in range(len(args.bias.split(','))):
+      for j in range(len(args_bias.split(','))):
         for i in range(len(fields)):
-          if fields[i]==args.bias.split(',')[j]:
+          if fields[i]==args_bias.split(',')[j]:
             col_bias.append(i-2)
             print(' bias "%s" found at columnd %d'%(fields[i],i-1))
-      if len(col_bias)!=len(args.bias.split(',')):
-        sys.exit(' found %d matching biases, but %d were requested. Use columns number to avoid ambiguity'%(len(col_bias),len(args.bias.split(','))))
+      if len(col_bias)!=len(args_bias.split(',')):
+        sys.exit(' found %d matching biases, but %d were requested. Use columns number to avoid ambiguity'%(len(col_bias),len(args_bias.split(','))))
     pass
 # get periodicity
 period_x=0
@@ -158,19 +169,19 @@ while line[0]=='#!':
       sys.exit(' derivatives not supported with periodic CVs, remove --der option')
   line=f.readline().split()
 f.close()
-skipme=header_lines+args.skiprows
+skipme=header_lines+args_skiprows
 # get sigma
-sigma_x=float(args.sigma.split(',')[0])
+sigma_x=float(args_sigma.split(',')[0])
 if dim2:
-  if len(args.sigma.split(','))!=2:
+  if len(args_sigma.split(','))!=2:
     sys.exit(' two comma-separated floats expected after --sigma')
-  sigma_y=float(args.sigma.split(',')[1])
+  sigma_y=float(args_sigma.split(',')[1])
 # read file
 all_cols=[col_x]+col_bias
 if dim2:
   all_cols=[col_x,col_y]+col_bias
 all_cols.sort() #pandas iloc reads them ordered
-data=pd.read_table(args.filename,dtype=float,sep='\s+',comment='#',header=None,usecols=all_cols,skiprows=skipme)
+data=pd.read_table(filename,dtype=float,sep='\s+',comment='#',header=None,usecols=all_cols,skiprows=skipme)
 cv_x=np.array(data.iloc[:,all_cols.index(col_x)])
 if dim2:
   cv_y=np.array(data.iloc[:,all_cols.index(col_y)])
@@ -183,55 +194,55 @@ size=0
 effsize=0
 
 ### Prepare the grid ###
-grid_bin_x=int(args.grid_bin.split(',')[0])
+grid_bin_x=int(args_grid_bin.split(',')[0])
 if period_x==0:
   grid_bin_x+=1 #same as plumed sum_hills
-if args.grid_min is None:
+if args_grid_min is None:
   if period_x==0: #otherwise is already set
     grid_min_x=min(cv_x)
 else:
-  if args.grid_min.split(',')[0]=='-pi':
+  if args_grid_min.split(',')[0]=='-pi':
     grid_min_x=-np.pi
   else:
-    grid_min_x=float(args.grid_min.split(',')[0])
-if args.grid_max is None:
+    grid_min_x=float(args_grid_min.split(',')[0])
+if args_grid_max is None:
   if period_x==0: #otherwise is already set
     grid_max_x=max(cv_x)
 else:
-  if args.grid_max.split(',')[0]=='pi':
+  if args_grid_max.split(',')[0]=='pi':
     grid_max_x=np.pi
   else:
-    grid_max_x=float(args.grid_max.split(',')[0])
+    grid_max_x=float(args_grid_max.split(',')[0])
 grid_cv_x=np.linspace(grid_min_x,grid_max_x,grid_bin_x)
 fes=np.zeros(grid_bin_x)
 if calc_der:
   der_fes_x=np.zeros(grid_bin_x)
 if dim2:
-  if len(args.grid_bin.split(','))!=2:
+  if len(args_grid_bin.split(','))!=2:
     sys.exit('two comma separated integers expected after --bin')
-  grid_bin_y=int(args.grid_bin.split(',')[1])
+  grid_bin_y=int(args_grid_bin.split(',')[1])
   if period_y==0:
     grid_bin_y+=1 #same as plumed sum_hills
-  if args.grid_min is None:
+  if args_grid_min is None:
     if period_y==0: #otherwise is already set
       grid_min_y=min(center_y)
   else:
-    if len(args.grid_min.split(','))!=2:
+    if len(args_grid_min.split(','))!=2:
       sys.exit('two comma separated floats expected after --min')
-    if args.grid_min.split(',')[1]=='-pi':
+    if args_grid_min.split(',')[1]=='-pi':
       grid_min_y=-np.pi
     else:
-      grid_min_y=float(args.grid_min.split(',')[1])
-  if args.grid_max is None:
+      grid_min_y=float(args_grid_min.split(',')[1])
+  if args_grid_max is None:
     if period_y==0: #otherwise is already set
       grid_max_y=max(center_y)
   else:
-    if len(args.grid_max.split(','))!=2:
+    if len(args_grid_max.split(','))!=2:
       sys.exit('two comma separated floats expected after --max')
-    if args.grid_max.split(',')[1]=='pi':
+    if args_grid_max.split(',')[1]=='pi':
       grid_max_y=np.pi
     else:
-      grid_max_y=float(args.grid_max.split(',')[1])
+      grid_max_y=float(args_grid_max.split(',')[1])
   grid_cv_y=np.linspace(grid_min_y,grid_max_y,grid_bin_y)
   x,y=np.meshgrid(grid_cv_x,grid_cv_y,indexing='ij')
   fes=np.zeros((grid_bin_x,grid_bin_y))
@@ -247,8 +258,6 @@ if calc_deltaF and (ts<=grid_min_x or ts>=grid_max_x):
 # setup blocks if needed
 len_tot=len(cv_x)
 block_av=False
-blocks_num=args.blocks_num
-stride=args.stride
 if blocks_num!=1:
   if calc_der:
     sys.exit(' derivatives not supported with --blocks, remove --der option')
@@ -261,12 +270,12 @@ if stride==0 or stride>len_tot:
 if stride!=len_tot:
   blocks_num=int(np.floor(len_tot/stride))
   print(' printing %d fes files'%(blocks_num))
-  if args.outfile.rfind('/')==-1:
+  if outfile.rfind('/')==-1:
     prefix=''
-    outfile_it=args.outfile
+    outfile_it=outfile
   else:
-    prefix=args.outfile[:args.outfile.rfind('/')]
-    outfile_it=args.outfile[args.outfile.rfind('/'):]
+    prefix=outfile[:outfile.rfind('/')]
+    outfile_it=outfile[outfile.rfind('/'):]
   if outfile_it.rfind('.')==-1:
     suffix=''
   else:
@@ -275,11 +284,11 @@ if stride!=len_tot:
   outfile_it=prefix+outfile_it+'_%d'+suffix
 
 # print function needs the grid and size, effsize, fes, der_fes
-def printFES(outfilename,uncertainty=False):
+def printFES(outfilename):
   if use_bck:
     cmd=subprocess.Popen('bck.meup.sh -i '+outfilename,shell=True)
     cmd.wait()
-  if not args.nomintozero:
+  if mintozero:
     shift=np.amin(fes)
 # calculate deltaF
 # NB: summing is as accurate as trapz, and logaddexp avoids overflows
@@ -318,8 +327,6 @@ def printFES(outfilename,uncertainty=False):
       line=(fmt+'  '+fmt)%(grid_cv_x[i],fes[i]-shift)
       if calc_der:
         line+=(' '+fmt)%(der_fes_x[i])
-      elif uncertainty:
-        line+=(' '+fmt)%(fes_err[i])
       f.write(line+'\n')
   else:
     f.write('#! SET min_'+name_cv_y+' %g\n'%(grid_min_y))
@@ -334,8 +341,6 @@ def printFES(outfilename,uncertainty=False):
         line=(fmt+' '+fmt+'  '+fmt)%(x[i,j],y[i,j],fes[i,j]-shift)
         if calc_der:
           line+=(' '+fmt+' '+fmt)%(der_fes_x[i,j],der_fes_y[i,j])
-        elif uncertainty:
-          line+=(' '+fmt)%(fes_err[i,j])
         f.write(line+'\n')
       f.write('\n')
   f.close()
@@ -399,7 +404,7 @@ for n in range(s+stride,len_tot+1,stride):
   effsize=np.sum(weights)**2/np.sum(weights**2)
 # print to file
   if stride==len_tot:
-    printFES(args.outfile)
+    printFES(outfile)
   else:
     printFES(outfile_it%it)
     if block_av:
@@ -408,7 +413,7 @@ for n in range(s+stride,len_tot+1,stride):
       s=n #do not include previous samples
     it+=1
 if block_av:
-  print(' printing block average to',args.outfile)
+  print(' printing block average to',outfile)
   start=len_tot%stride
   size=len_tot-start
   weights=np.exp(bias[start:]-np.amax(bias[start:]))
@@ -430,5 +435,56 @@ if block_av:
 # - propagate the uncertainty from there to the fes, neglecting correlations for simplicity
 # NB: the following np.exp cannot be easily made 100% numerically safe, but using np.expm1 makes it more robust
   fes_err=kbt*np.sqrt(1/(blocks_neff-1)*(np.average(np.expm1(-(block_fes-fes)/kbt)**2,axis=0,weights=safe_block_weight)))
-  printFES(args.outfile,True)
+#print to file (slightly different than usual)
+if use_bck:
+  cmd=subprocess.Popen('bck.meup.sh -i '+outfile,shell=True)
+  cmd.wait()
+if mintozero:
+  fes-=np.amin(fes)
+# calculate deltaF
+# NB: summing is as accurate as trapz, and logaddexp avoids overflows
+if calc_deltaF:
+  if not dim2:
+    fesA=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x<ts])
+    fesB=-kbt*np.logaddexp.reduce(-kbt*fes[grid_cv_x>ts])
+  else:
+    fesA=-kbt*np.logaddexp.reduce(-kbt*fes[x<ts])
+    fesB=-kbt*np.logaddexp.reduce(-kbt*fes[x>ts])
+  deltaF=fesB-fesA
+#actual printing
+f=open(outfile,'w')
+fields='#! FIELDS '+name_cv_x
+if dim2:
+  fields+=' '+name_cv_y
+fields+=' file.free uncertainty'
+f.write(fields+'\n')
+f.write('#! SET sample_size %d\n'%size)
+f.write('#! SET effective_sample_size %d\n'%effsize)
+if calc_deltaF:
+  f.write('#! SET DeltaF %g\n'%(deltaF))
+f.write('#! SET blocks_num %d\n'%blocks_num)
+f.write('#! SET blocks_effective_num %g\n'%blocks_neff)
+f.write('#! SET min_'+name_cv_x+' %g\n'%(grid_min_x))
+f.write('#! SET max_'+name_cv_x+' %g\n'%(grid_max_x))
+f.write('#! SET nbins_'+name_cv_x+' %g\n'%(grid_bin_x))
+if period_x==0:
+  f.write('#! SET periodic_'+name_cv_x+' false\n')
+else:
+  f.write('#! SET periodic_'+name_cv_x+' true\n')
+if not dim2:
+  for i in range(grid_bin_x):
+    f.write((fmt+'  '+fmt+' '+fmt+'\n')%(grid_cv_x[i],fes[i],fes_err[i]))
+else:
+  f.write('#! SET min_'+name_cv_y+' %g\n'%(grid_min_y))
+  f.write('#! SET max_'+name_cv_y+' %g\n'%(grid_max_y))
+  f.write('#! SET nbins_'+name_cv_y+' %g\n'%(grid_bin_y))
+  if period_y==0:
+    f.write('#! SET periodic_'+name_cv_y+' false\n')
+  else:
+    f.write('#! SET periodic_'+name_cv_y+' true\n')
+  for i in range(grid_bin_x):
+    for j in range(grid_bin_y):
+      f.write((fmt+' '+fmt+'  '+fmt+' '+fmt+'\n')%(x[i,j],y[i,j],fes[i,j],fes_err[i,j]))
+    f.write('\n')
+f.close()
 print('                              ')
