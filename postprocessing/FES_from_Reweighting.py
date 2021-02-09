@@ -254,8 +254,8 @@ if blocks_num!=1:
     sys.exit(' derivatives not supported with --blocks, remove --der option')
   block_av=True
   stride=int(np.floor(len_tot/blocks_num))
-  block_weight=np.zeros(blocks_num)
-  fes_all=np.zeros((blocks_num,)+np.shape(fes))
+  block_logweight=np.zeros(blocks_num)
+  block_fes=np.zeros((blocks_num,)+np.shape(fes))
 if stride==0 or stride>len_tot:
   stride=len_tot
 if stride!=len_tot:
@@ -403,8 +403,8 @@ for n in range(s+stride,len_tot+1,stride):
   else:
     printFES(outfile_it%it)
     if block_av:
-      block_weight[it-1]=np.sum(weights)
-      fes_all[it-1]=fes
+      block_logweight[it-1]=np.logaddexp.reduce(bias[s:n])
+      block_fes[it-1]=fes
       s=n #do not include previous samples
     it+=1
 if block_av:
@@ -413,10 +413,22 @@ if block_av:
   size=len_tot-start
   weights=np.exp(bias[start:]-np.amax(bias[start:]))
   effsize=np.sum(weights)**2/np.sum(weights**2)
-  blocks_neff=np.sum(block_weight)**2/np.sum(block_weight**2)
-  print(' number of blocsk is %d, while effective number is %g'%(blocks_num,blocks_neff))
-  fes=np.average(fes_all,axis=0,weights=block_weight)
-  blocks_var=blocks_neff/(blocks_neff-1)*np.average((fes_all-fes)**2,axis=0,weights=block_weight)
-  fes_err=np.sqrt(blocks_var/blocks_neff)
+  safe_block_weight=np.exp(block_logweight-np.amax(block_logweight))
+  blocks_neff=np.sum(safe_block_weight)**2/np.sum(safe_block_weight**2)
+  print(' number of blocks is %d, while effective number is %g'%(blocks_num,blocks_neff))
+  if not dim2:
+    for i in range(grid_bin_x):
+      print('   working...  {:.0%}'.format(i/grid_bin_x),end='\r')
+      fes[i]=calcFESpoint(start,len_tot,grid_cv_x[i])
+  else:
+    for i in range(grid_bin_x):
+      print('   working...  {:.0%}'.format(i/grid_bin_x),end='\r')
+      for j in range(grid_bin_y):
+        fes[i,j]=calcFESpoint(start,len_tot,x[i,j],y[i,j])
+# To understand the formula for fes_err:
+# - calc the uncertainty over the probability=exp(-fes/kbt). this is a simple weighted average of all the gaussians evauated in that grid position
+# - propagate the uncertainty from there to the fes, neglecting correlations for simplicity
+# NB: the following np.exp cannot be easily made 100% numerically safe, but using np.expm1 makes it more robust
+  fes_err=kbt*np.sqrt(1/(blocks_neff-1)*(np.average(np.expm1(-(block_fes-fes)/kbt)**2,axis=0,weights=safe_block_weight)))
   printFES(args.outfile,True)
 print('                              ')
