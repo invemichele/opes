@@ -262,14 +262,15 @@ if blocks_num!=1:
   if calc_der:
     sys.exit(' derivatives not supported with --blocks, remove --der option')
   block_av=True
-  stride=int(np.floor(len_tot/blocks_num))
+  stride=int(len_tot/blocks_num)
+  blocks_num=int(len_tot/stride) #with big numbers this is safer
   block_logweight=np.zeros(blocks_num)
   block_fes=np.zeros((blocks_num,)+np.shape(fes))
 if stride==0 or stride>len_tot:
   stride=len_tot
 if stride!=len_tot:
-  blocks_num=int(np.floor(len_tot/stride))
-  print(' printing %d fes files'%(blocks_num))
+  blocks_num=int(len_tot/stride)
+  print(' printing %d FES files, each from %d samples'%(blocks_num,stride))
   if outfile.rfind('/')==-1:
     prefix=''
     outfile_it=outfile
@@ -290,6 +291,8 @@ def printFES(outfilename):
     cmd.wait()
   if mintozero:
     shift=np.amin(fes)
+  else:
+    shift=0
 # calculate deltaF
 # NB: summing is as accurate as trapz, and logaddexp avoids overflows
   if calc_deltaF:
@@ -402,18 +405,22 @@ for n in range(s+stride,len_tot+1,stride):
   weights=np.exp(bias[s:n]-np.amax(bias[s:n])) #these are safe to sum
   size=len(weights)
   effsize=np.sum(weights)**2/np.sum(weights**2)
+# get useful things for block average
+  if block_av or not mintozero:
+    bias_norm_shift=np.logaddexp.reduce(bias[s:n])
+    fes+=kbt*bias_norm_shift
+  if block_av:
+    block_logweight[it-1]=bias_norm_shift
+    block_fes[it-1]=fes
+    s=n #do not include previous samples
 # print to file
   if stride==len_tot:
     printFES(outfile)
   else:
     printFES(outfile_it%it)
-    if block_av:
-      block_logweight[it-1]=np.logaddexp.reduce(bias[s:n])
-      block_fes[it-1]=fes
-      s=n #do not include previous samples
     it+=1
 if block_av:
-  print(' printing block average to',outfile)
+  print(' printing final FES with block average to',outfile)
   start=len_tot%stride
   size=len_tot-start
   weights=np.exp(bias[start:]-np.amax(bias[start:]))
@@ -421,15 +428,7 @@ if block_av:
   safe_block_weight=np.exp(block_logweight-np.amax(block_logweight))
   blocks_neff=np.sum(safe_block_weight)**2/np.sum(safe_block_weight**2)
   print(' number of blocks is %d, while effective number is %g'%(blocks_num,blocks_neff))
-  if not dim2:
-    for i in range(grid_bin_x):
-      print('   working...  {:.0%}'.format(i/grid_bin_x),end='\r')
-      fes[i]=calcFESpoint(start,len_tot,grid_cv_x[i])
-  else:
-    for i in range(grid_bin_x):
-      print('   working...  {:.0%}'.format(i/grid_bin_x),end='\r')
-      for j in range(grid_bin_y):
-        fes[i,j]=calcFESpoint(start,len_tot,x[i,j],y[i,j])
+  fes=-kbt*np.log(np.average(np.exp(-block_fes/kbt),axis=0,weights=safe_block_weight))
 # To understand the formula for fes_err:
 # - calc the uncertainty over the probability=exp(-fes/kbt). this is a simple weighted average of all the gaussians evauated in that grid position
 # - propagate the uncertainty from there to the fes, neglecting correlations for simplicity
