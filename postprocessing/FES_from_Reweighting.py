@@ -8,8 +8,9 @@ import sys
 import argparse
 import numpy as np
 import pandas as pd #much faster reading from file
-use_bck=False #requires the bck.meup.sh script
-if use_bck:
+do_bck=False #backup files in plumed style
+if do_bck:
+  bck_script='bck.meup.sh' #place the script in your ~/bin
   import subprocess
 
 print('')
@@ -289,8 +290,8 @@ if stride!=len_tot:
 
 # print function needs the grid and size, effsize, fes, der_fes
 def printFES(outfilename):
-  if use_bck:
-    cmd=subprocess.Popen('bck.meup.sh -i '+outfilename,shell=True)
+  if do_bck:
+    cmd=subprocess.Popen(bck_script+' -i '+outfilename,shell=True)
     cmd.wait()
   if mintozero:
     shift=np.amin(fes)
@@ -439,8 +440,8 @@ if block_av:
 # NB: the following np.exp cannot be easily made 100% numerically safe, but using np.expm1 makes it more robust
   fes_err=kbt*np.sqrt(1/(blocks_neff-1)*(np.average(np.expm1(-(block_fes-fes)/kbt)**2,axis=0,weights=safe_block_weight)))
 # print to file (slightly different than usual)
-  if use_bck:
-    cmd=subprocess.Popen('bck.meup.sh -i '+outfile,shell=True)
+  if do_bck:
+    cmd=subprocess.Popen(bck_script+' -i '+outfile,shell=True)
     cmd.wait()
   if mintozero:
     fes-=np.amin(fes)

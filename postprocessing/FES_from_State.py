@@ -7,8 +7,9 @@ import sys
 import argparse
 import numpy as np
 import pandas as pd #much faster reading from file
-use_bck=False #requires the bck.meup.sh script
-if use_bck:
+do_bck=False #backup files in plumed style
+if do_bck:
+  bck_script='bck.meup.sh' #place the script in your ~/bin
   import subprocess
 
 ### Parser stuff ###
@@ -297,8 +298,8 @@ for n in range(len(fields_pos)-1):
     outfile_n=outfile%time
   else:
     outfile_n=outfile
-  if use_bck:
-    cmd=subprocess.Popen('bck.meup.sh -i '+outfile_n,shell=True)
+  if do_bck:
+    cmd=subprocess.Popen(bck_script+' -i '+outfile_n,shell=True)
     cmd.wait()
 # actual print
   f=open(outfile_n,'w')
