@@ -119,13 +119,13 @@ else:
       for i in range(len(fields)):
         if fields[i].find('.bias')!=-1:
           col_bias.append(i-2)
-          print(' bias "%s" found at columnd %d'%(fields[i],i-1))
+          print(' bias "%s" found at column %d'%(fields[i],i-1))
     else:
       for j in range(len(args_bias.split(','))):
         for i in range(len(fields)):
           if fields[i]==args_bias.split(',')[j]:
             col_bias.append(i-2)
-            print(' bias "%s" found at columnd %d'%(fields[i],i-1))
+            print(' bias "%s" found at column %d'%(fields[i],i-1))
       if len(col_bias)!=len(args_bias.split(',')):
         sys.exit(error%('found %d matching biases, but %d were requested. Use columns number to avoid ambiguity'%(len(col_bias),len(args_bias.split(',')))))
     pass
@@ -183,6 +183,8 @@ if dim2:
   all_cols=[col_x,col_y]+col_bias
 all_cols.sort() #pandas iloc reads them ordered
 data=pd.read_table(filename,dtype=float,sep='\s+',comment='#',header=None,usecols=all_cols,skiprows=skipme)
+if data.isnull().values.any():
+  sys.exit(error%('your COLVAR file contains NaNs. Check if last line is truncated'))
 cv_x=np.array(data.iloc[:,all_cols.index(col_x)])
 if dim2:
   cv_y=np.array(data.iloc[:,all_cols.index(col_y)])
