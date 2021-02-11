@@ -229,7 +229,7 @@ if dim2:
     grid_bin_y+=1 #same as plumed sum_hills
   if args_grid_min is None:
     if period_y==0: #otherwise is already set
-      grid_min_y=min(center_y)
+      grid_min_y=min(cv_y)
   else:
     if len(args_grid_min.split(','))!=2:
       sys.exit(error%('two comma separated floats expected after --min'))
@@ -239,7 +239,7 @@ if dim2:
       grid_min_y=float(args_grid_min.split(',')[1])
   if args_grid_max is None:
     if period_y==0: #otherwise is already set
-      grid_max_y=max(center_y)
+      grid_max_y=max(cv_y)
   else:
     if len(args_grid_max.split(','))!=2:
       sys.exit(error%('two comma separated floats expected after --max'))
