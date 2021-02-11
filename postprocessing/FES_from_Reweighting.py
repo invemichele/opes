@@ -316,7 +316,7 @@ def printFES(outfilename):
       fields+=' der_'+name_cv_y
   f.write(fields+'\n')
   f.write('#! SET sample_size %d\n'%size)
-  f.write('#! SET effective_sample_size %d\n'%effsize)
+  f.write('#! SET effective_sample_size %g\n'%effsize)
   if calc_deltaF:
     f.write('#! SET DeltaF %g\n'%(deltaF))
   f.write('#! SET min_'+name_cv_x+' %g\n'%(grid_min_x))
@@ -460,7 +460,7 @@ if block_av:
   fields+=' file.free uncertainty'
   f.write(fields+'\n')
   f.write('#! SET sample_size %d\n'%size)
-  f.write('#! SET effective_sample_size %d\n'%effsize)
+  f.write('#! SET effective_sample_size %g\n'%effsize)
   if calc_deltaF:
     f.write('#! SET DeltaF %g\n'%(deltaF))
   f.write('#! SET blocks_num %d\n'%blocks_num)
