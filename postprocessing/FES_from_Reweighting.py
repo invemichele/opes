@@ -439,6 +439,7 @@ if block_av:
 # - propagate the uncertainty from there to the fes, neglecting correlations for simplicity
 # NB: the following np.exp cannot be easily made 100% numerically safe, but using np.expm1 makes it more robust
   fes_err=kbt*np.sqrt(1/(blocks_neff-1)*(np.average(np.expm1(-(block_fes-fes)/kbt)**2,axis=0,weights=safe_block_weight)))
+  print(' average FES uncertainty is:',np.average(fes_err))
 # print to file (slightly different than usual)
   if do_bck:
     cmd=subprocess.Popen(bck_script+' -i '+outfile,shell=True)
