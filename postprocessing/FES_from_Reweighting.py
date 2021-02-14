@@ -280,6 +280,8 @@ if stride!=len_tot:
     outfile_it=outfile
   else:
     prefix=outfile[:outfile.rfind('/')]
+    if prefix+'/'==outfile:
+      outfile+='fes_rew.dat'
     outfile_it=outfile[outfile.rfind('/'):]
   if outfile_it.rfind('.')==-1:
     suffix=''

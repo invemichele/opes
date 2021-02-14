@@ -7,9 +7,8 @@ import sys
 import argparse
 import numpy as np
 import pandas as pd #much faster reading from file
-do_bck=False #backup files in plumed style
-if do_bck:
-  bck_script='bck.meup.sh' #place the script in your ~/bin
+use_bck=False #requires the bck.meup.sh script
+if use_bck:
   import subprocess
 
 ### Parser stuff ###
@@ -33,6 +32,8 @@ parser.add_argument('--nomintozero',dest='nomintozero',action='store_true',defau
 parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
 # some easy parsing
 args=parser.parse_args()
+filename=args.filename
+outfile=args.outfile
 if args.kbt is not None:
   kbt=args.kbt
 else:
@@ -46,32 +47,32 @@ mintozero=(not args.nomintozero)
 calc_der=args.der
 all_stored=args.all_stored
 if all_stored:
-  if args.outfile.rfind('/')==-1:
+  if outfile.rfind('/')==-1:
     prefix=''
-    outfile=args.outfile
+    outfile_n=outfile
   else:
-    prefix=args.outfile[:args.outfile.rfind('/')]
-    outfile=args.outfile[args.outfile.rfind('/'):]
-  if outfile.rfind('.')==-1:
+    prefix=outfile[:outfile.rfind('/')]
+    if prefix+'/'==outfile:
+      outfile+='fes_rew.dat'
+    outfile_n=outfile[outfile.rfind('/'):]
+  if outfile_n.rfind('.')==-1:
     suffix=''
   else:
-    suffix=outfile[outfile.rfind('.'):]
-    outfile=outfile[:outfile.rfind('.')]
-  outfile=prefix+outfile+'-t%g'+suffix
-else:
-  outfile=args.outfile
+    suffix=outfile_n[outfile_n.rfind('.'):]
+    outfile_n=outfile_n[:outfile_n.rfind('.')]
+  outfile_n=prefix+outfile_n+'_%d'+suffix
 explore='unset'
 
 ### Get data ###
 # get data and check number of stored states
-data=pd.read_table(args.filename,sep='\s+',header=None)
+data=pd.read_table(filename,sep='\s+',header=None)
 fields_pos=[]
 tot_lines=len(data.iloc[:,1])
 for i in range(tot_lines):
   if data.iloc[i,1]=='FIELDS':
     fields_pos.append(i)
 if len(fields_pos)==0:
-  sys.exit(' no FIELDS found in file "'+args.filename+'"')
+  sys.exit(' no FIELDS found in file "'+filename+'"')
 if len(fields_pos)>1:
   print(' a total of %d stored states where found'%len(fields_pos))
   if all_stored:
@@ -92,7 +93,7 @@ for n in range(len(fields_pos)-1):
     name_cv_x=data.iloc[l,3]
     name_cv_y=data.iloc[l,4]
   else:
-    sys.exit(' wrong number of FIELDS in file "'+args.filename+'": only 1 or 2 dimensional bias are supported')
+    sys.exit(' wrong number of FIELDS in file "'+filename+'": only 1 or 2 dimensional bias are supported')
   action=data.iloc[l+1,3]
   if action=="OPES_METAD_state":
     if explore!='no':
@@ -166,7 +167,6 @@ for n in range(len(fields_pos)-1):
   if l==fields_pos[-1]:
     sys.exit(' missing data!')
 # get kernels
-  time=float(data.iloc[l,0])
   center_x=np.array(data.iloc[l:fields_pos[n+1],1],dtype=float)
   if dim2:
     center_y=np.array(data.iloc[l:fields_pos[n+1],2],dtype=float)
@@ -295,14 +295,12 @@ for n in range(len(fields_pos)-1):
 ### Print to file ###
 # prepare file
   if all_stored:
-    outfile_n=outfile%time
-  else:
-    outfile_n=outfile
-  if do_bck:
-    cmd=subprocess.Popen(bck_script+' -i '+outfile_n,shell=True)
+    outfile=outfile_n%(n+1)
+  if use_bck:
+    cmd=subprocess.Popen('bck.meup.sh -i '+outfile,shell=True)
     cmd.wait()
 # actual print
-  f=open(outfile_n,'w')
+  f=open(outfile,'w')
   fields='#! FIELDS '+name_cv_x
   if dim2:
     fields+=' '+name_cv_y
