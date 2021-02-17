@@ -16,11 +16,12 @@ error='--- ERROR: %s '
 parser = argparse.ArgumentParser(description='Generate an OPES STATE file from a KERNELS file, so that it can be used with FES_from_State.py. DO NOT use the obtained STATE file for restart')
 parser.add_argument('--kernels','-f',dest='filename',type=str,default='KERNELS',help='the kernels file name, with the deposited kernels')
 parser.add_argument('--outfile','-o',dest='outfile',type=str,default='STATE',help='name of the output file')
-parser.add_argument('--keep_tmp',dest='keep_tmp',action='store_true',default=False,help='keep the temporary plumed file')
+parser.add_argument('--tmpname',dest='tmpname',type=str,default='tmp-plumed_driver.dat',help='name of the temporary plumed file')
 args = parser.parse_args()
 #parsing
 filename=args.filename
 outfile=args.outfile
+tmp_plumed_file=args.tmpname
 
 #get info
 f=open(filename,'r')
@@ -35,9 +36,7 @@ ncv=int((len(line.split())-5)/2)
 cvname=[]
 for i in range(ncv):
   cvname.append(line.split()[3+i])
-  if cvname[i].find('.')!=-1:
-    sys.exit(error%(' %s: you must modify the KERNELS file and remove any "." from CVs names'%cvname[i]))
-  if line.split()[4+i]!='sigma_'+cvname[i]:
+  if line.split()[3+ncv+i]!='sigma_'+cvname[i]:
     sys.exit(error%(' expected "sigma_%s" instead of "%s"'%(cvname[i],line.split()[4+i])))
 line=f.readline() #action
 if line.split()[3]=='OPES_METAD_kernels':
@@ -75,14 +74,31 @@ while line.split()[0]=='#!':
   line=f.readline()
 f.close()
 
+#unfourtunately plumed does not allow for CVs to be named with a dot
+#for now we only support .x .y .z in no periodic CVs
+suffix=['']*ncv
+for i in range(ncv):
+  if cvname[i].find('.')!=-1:
+    suffix[i]=cvname[i][cvname[i].find('.'):]
+    if ((suffix[i]=='.x' or suffix[i]=='.y' or suffix[i]=='.z') and periodic[i]=='NO'):
+      cvname[i]=cvname[i][:cvname[i].find('.')]
+    else:
+      sys.exit(error%(' %s: you must modify the KERNELS file and remove any "." from CVs names'%cvname[i]))
+
 #create temporary plumed file
-plumed_input='# vim:ft=plumed\nUNITS NATURAL\n'
+plumed_input='# Temporary file used to convert an opes KERNELS file into a STATE file\n'
+plumed_input+='# vim:ft=plumed\nUNITS NATURAL\n'
 plumed_input+='RESTART\n'
 plumed_input+='f: FIXEDATOM AT=0,0,0\n' #fake atom
 plumed_input+='d: DISTANCE ATOMS=f,f\n' #unfourtunately the FAKE colvar has issues with PERIODIC
 plumed_input+='COMMITTOR ARG=d BASIN_LL1=-1 BASIN_UL1=1\n' #this will kill the driver
 for i in range(ncv):
-  plumed_input+=cvname[i]+': COMBINE ARG=d PERIODIC='+periodic[i]+'\n' #recreate CVs label doesn't work if they have components!
+  if suffix[i]=='':
+    plumed_input+=cvname[i]+': COMBINE ARG=d PERIODIC='+periodic[i]+'\n' #recreate CVs label doesn't work if they have components!
+  else:
+    if not cvname[i] in cvname[i+1:]: #avoid duplicates
+      plumed_input+=cvname[i]+': DISTANCE ATOMS=f,f COMPONENTS\n'
+    cvname[i]+=suffix[i]
 plumed_input+='opes: '+action
 plumed_input+=' ARG='+cvname[0]
 for ii in range(1,ncv):
@@ -97,15 +113,12 @@ plumed_input+=' TEMP=1 PACE=1 BARRIER=1 SIGMA=1'
 for ii in range(1,ncv):
   plumed_input+=',1'
 
-tmp_plumed_file='tmp-plumed_driver.dat'
 f=open(tmp_plumed_file,'w')
 f.write(plumed_input)
 f.close()
 
 #run driver
 cmd_string=plumed_exe+' driver --noatoms --plumed '+tmp_plumed_file
-if not args.keep_tmp:
-  cmd_string+='; rm '+tmp_plumed_file
 cmd=subprocess.Popen(cmd_string,shell=True)
 cmd.wait()
 
