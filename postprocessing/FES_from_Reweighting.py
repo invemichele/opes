@@ -118,7 +118,7 @@ else:
     col_bias=[]
     if args_bias=='.bias':
       for i in range(len(fields)):
-        if fields[i].find('.bias')!=-1:
+        if fields[i].find('.bias')!=-1 or fields[i].find('.rbias')!=-1:
           col_bias.append(i-2)
           print(' bias "%s" found at column %d'%(fields[i],i-1))
     else:
