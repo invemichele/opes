@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd #much faster reading from file
 do_bck=False #backup files in plumed style
 if do_bck:
-  bck_script='bck.meup.sh' #place the script in your ~/bin
+  bck_script='bck.meup.sh' #e.g. place the script in your ~/bin
   import subprocess
 
 print('')
