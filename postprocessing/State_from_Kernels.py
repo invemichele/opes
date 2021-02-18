@@ -121,4 +121,4 @@ f.close()
 cmd_string=plumed_exe+' driver --noatoms --plumed '+tmp_plumed_file
 cmd=subprocess.Popen(cmd_string,shell=True)
 cmd.wait()
-
+print(' +++ IMPORTANT: do not use the obtained STATE file for restarting a simulation +++')

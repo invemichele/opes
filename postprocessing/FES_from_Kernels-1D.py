@@ -32,7 +32,7 @@ kbt=args.kbt
 mintozero=args.mintozero
 faster=args.faster
 calc_der=(not args.no_der)
-print(' +++ WARNING: depending on your setup this might be not accurate. Use FES_from_State.py for an exact result +++')
+print(' +++ WARNING: depending on your setup this fes reconstruction might be not accurate. Use FES_from_State.py for an exact result +++')
 
 #get kernels
 f=open(filename)

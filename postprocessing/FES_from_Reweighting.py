@@ -19,7 +19,7 @@ error='--- ERROR: %s \n'
 parser = argparse.ArgumentParser(description='calculate the free energy surfase (FES) along the chosen collective variables (1 or 2) using a reweighted kernel density estimate')
 # files
 parser.add_argument('--colvar','-f',dest='filename',type=str,default='COLVAR',help='the COLVAR file name, with the collective variables and the bias')
-parser.add_argument('--outfile','-o',dest='outfile',type=str,default='fes_rew.dat',help='name of the output file')
+parser.add_argument('--outfile','-o',dest='outfile',type=str,default='fes-rew.dat',help='name of the output file')
 # compulsory
 parser.add_argument('--sigma','-s',dest='sigma',type=str,required=True,help='the bandwidth for the kernel density estimation. Use e.g. the last value of sigma from an OPES_METAD simulation')
 kbt_group=parser.add_mutually_exclusive_group(required=True)
@@ -92,7 +92,6 @@ except ValueError:
       col_x=i-2
   if col_x==-1:
     sys.exit(error%('cv "%s" not found'%name_cv_x))
-  print(' cv1 "%s" found at column %d'%(name_cv_x,col_x+1))
   pass
 if dim2:
   try:
@@ -106,7 +105,6 @@ if dim2:
         col_y=i-2
     if col_y==-1:
       sys.exit(error%('cv "%s" not found'%name_cv_y))
-    print(' cv2 "%s" found at column %d'%(name_cv_y,col_y+1))
     pass
 # get bias
 if args_bias=='NO' or args_bias=='no':
@@ -120,16 +118,21 @@ else:
       for i in range(len(fields)):
         if fields[i].find('.bias')!=-1 or fields[i].find('.rbias')!=-1:
           col_bias.append(i-2)
-          print(' bias "%s" found at column %d'%(fields[i],i-1))
     else:
       for j in range(len(args_bias.split(','))):
         for i in range(len(fields)):
           if fields[i]==args_bias.split(',')[j]:
             col_bias.append(i-2)
-            print(' bias "%s" found at column %d'%(fields[i],i-1))
       if len(col_bias)!=len(args_bias.split(',')):
         sys.exit(error%('found %d matching biases, but %d were requested. Use columns number to avoid ambiguity'%(len(col_bias),len(args_bias.split(',')))))
     pass
+print(' using cv "%s" found at column %d'%(name_cv_x,col_x+1))
+if dim2:
+  print(' using cv "%s" found at column %d'%(name_cv_y,col_y+1))
+if len(col_bias)==0:
+  print(' no bias')
+for col in col_bias:
+  print(' using bias "%s" found at column %d'%(fields[col+2],col+1))
 # get periodicity
 period_x=0
 period_y=0
@@ -274,14 +277,14 @@ if stride==0 or stride>len_tot:
   stride=len_tot
 if stride!=len_tot:
   blocks_num=int(len_tot/stride)
-  print(' printing %d FES files, each from %d samples'%(blocks_num,stride))
+  print(' printing %d FES files, one every %d samples'%(blocks_num,stride))
   if outfile.rfind('/')==-1:
     prefix=''
     outfile_it=outfile
   else:
     prefix=outfile[:outfile.rfind('/')]
     if prefix+'/'==outfile:
-      outfile+='fes_rew.dat'
+      outfile+='fes-rew.dat'
     outfile_it=outfile[outfile.rfind('/'):]
   if outfile_it.rfind('.')==-1:
     suffix=''
@@ -426,7 +429,7 @@ for n in range(s+stride,len_tot+1,stride):
     printFES(outfile_it%it)
     it+=1
 if block_av:
-  print('+++ CAUTION: remember to try different numbers of blocks and check for the convergence of the uncertainty estimate +++')
+  print('+++ IMPORTANT: remember to try different numbers of blocks and check for the convergence of the uncertainty estimate +++')
   print(' printing final FES with block average to',outfile)
   start=len_tot%stride
   size=len_tot-start
