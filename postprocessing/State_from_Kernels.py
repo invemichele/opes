@@ -4,8 +4,6 @@
 # For postprocessing only, do not use for restarting a simulation
 # (the idea is to fake a restart with the plumed driver and dump the OPES state)
 
-# WARNING: requires small modifications that will be added to PLUMED: https://github.com/invemichele/plumed2/commit/7be6829ce33ab22ce3ec0ff7ef1788ec638eef75
-
 import sys
 import argparse
 import subprocess
