@@ -1,5 +1,6 @@
-work in progress...
+Work in progress...
 
-the idea is to eventually build a tool similar to plumed sum_hills, for printing the running FES estimate
+The idea is to eventually build a small python library to quickly perform post-processing tasks typical of a biased OPES simulation.
+Contributions are of course welcome!
 
-for reweighting instead one can use the plumed REWEIGHT_BIAS, or any program that makes weighted KDE/histograms
+See also this tutorial https://www.plumed.org/doc-v2.7/user-doc/html/opes-metad.html
