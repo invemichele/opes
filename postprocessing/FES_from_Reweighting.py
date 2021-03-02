@@ -4,6 +4,12 @@
 # uses a weighted kernel density estimation, so it requires the bandwidth sigma
 # usage is similar to plumed sum_hills
 
+# NB: in case of multiple walkers one should combine them in a single file
+# when using --stride or --skiprows one should sort them:
+#   sort -gs COLVAR.* > COLVAR
+# when using --blocks it is better to concatenate them:
+#   cat COLVAR.* > COLVAR
+
 import sys
 import argparse
 import numpy as np
@@ -43,6 +49,7 @@ parser.add_argument('--nomintozero',dest='nomintozero',action='store_true',defau
 parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
 parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
 # parse everything, for better compatibility
+
 args=parser.parse_args()
 filename=args.filename
 outfile=args.outfile
