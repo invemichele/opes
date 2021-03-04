@@ -45,6 +45,7 @@ split_group.add_argument('--stride',dest='stride',type=int,default=0,help='print
 # other options
 parser.add_argument('--deltaFat',dest='deltaFat',type=float,help='calculate the free energy difference between left and right of given cv1 value')
 parser.add_argument('--skiprows',dest='skiprows',type=int,default=0,help='skip this number of initial rows')
+parser.add_argument('--reverse',dest='reverse',action='store_true',default=False,help='reverse the time. Should be combined with --stride, without --skiprows')
 parser.add_argument('--nomintozero',dest='nomintozero',action='store_true',default=False,help='do not shift the minimum to zero')
 parser.add_argument('--der',dest='der',action='store_true',default=False,help='calculate also FES derivatives')
 parser.add_argument('--fmt',dest='fmt',type=str,default='% 12.6f',help='specify the output format')
@@ -71,6 +72,7 @@ if args.deltaFat is not None:
 ts=args.deltaFat
 args_skiprows=args.skiprows
 mintozero=(not args.nomintozero)
+reverse=args.reverse
 calc_der=args.der
 fmt=args.fmt
 
@@ -193,6 +195,8 @@ all_cols.sort() #pandas iloc reads them ordered
 data=pd.read_table(filename,dtype=float,sep='\s+',comment='#',header=None,usecols=all_cols,skiprows=skipme)
 if data.isnull().values.any():
   sys.exit(error%('your COLVAR file contains NaNs. Check if last line is truncated'))
+if reverse:
+  data=data.iloc[::-1]
 cv_x=np.array(data.iloc[:,all_cols.index(col_x)])
 if dim2:
   cv_y=np.array(data.iloc[:,all_cols.index(col_y)])
