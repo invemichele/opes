@@ -41,7 +41,7 @@ parser.add_argument('--bin',dest='grid_bin',type=str,default="100,100",help='num
 # blocks
 split_group=parser.add_mutually_exclusive_group(required=False)
 split_group.add_argument('--blocks',dest='blocks_num',type=int,default=1,help='calculate errors with block average, using this number of blocks')
-split_group.add_argument('--stride',dest='stride',type=int,default=0,help='print running FES estimate with this stride. Use --blocks for stride without history')
+split_group.add_argument('--stride',dest='stride',type=int,default=0,help='print running FES estimate with this stride. Use --blocks for stride without history') #TODO make this more efficient
 # other options
 parser.add_argument('--deltaFat',dest='deltaFat',type=float,help='calculate the free energy difference between left and right of given cv1 value')
 parser.add_argument('--skiprows',dest='skiprows',type=int,default=0,help='skip this number of initial rows')
