@@ -3,6 +3,8 @@
 ### Get the running FES estimate used by OPES_METAD, 1D only ###
 # similar to plumed sum_hills
 
+# +++ WARNING: use FES_from_State.py for a more accurate bias reconstruction +++
+
 import sys
 import numpy as np
 import pandas as pd
@@ -32,7 +34,7 @@ kbt=args.kbt
 mintozero=args.mintozero
 faster=args.faster
 calc_der=(not args.no_der)
-print(' +++ WARNING: depending on your setup this fes reconstruction might be not accurate. Use FES_from_State.py for an exact result +++')
+print(' +++ WARNING: this bias reconstruction is approximate. Use FES_from_State.py for an exact result +++')
 
 #get kernels
 f=open(filename)
