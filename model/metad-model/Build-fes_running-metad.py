@@ -87,7 +87,7 @@ def print_fes(it):
   np.savetxt(current_fes_running%((it+1)*pace_to_time),np.c_[cv_grid,fes],header=head,fmt='%14.9f')
   n=int(it/print_stride)
   time[n]=(it+1)*pace_to_time
-  deltaF[n]=np.log((np.exp(-fes[cv_grid<transition_s]/kbt)).sum()/(np.exp(-fes[cv_grid>transition_s]/kbt)).sum())
+  deltaF[n]=kbt*np.log((np.exp(-fes[cv_grid<transition_s]/kbt)).sum()/(np.exp(-fes[cv_grid>transition_s]/kbt)).sum())
 
 #build fes
 for i in range(len(b_center)):

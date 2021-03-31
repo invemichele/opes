@@ -135,7 +135,7 @@ def print_fes(it):
   #calc other stuff
   n=int(it/print_stride)
   time[n]=(it+1)*pace_to_time
-  deltaF[n]=np.log((np.exp(-z_fes[cv_grid<transition_s]/kbt)).sum()/(np.exp(-z_fes[cv_grid>transition_s]/kbt)).sum())
+  deltaF[n]=kbt*np.log((np.exp(-z_fes[cv_grid<transition_s]/kbt)).sum()/(np.exp(-z_fes[cv_grid>transition_s]/kbt)).sum())
 
 # compression
 for i in range(1,len(center)):
