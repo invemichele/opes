@@ -3,4 +3,7 @@ To run a single quick test copy inputs/md_intput.dat and inputs/md_potential.dat
 
 plumed ves_md_linearexpansion md_input.0.dat 
 
-NB: you need to enamble the ves module in order to run this simulations!
+NB: you need to enable the ves module in order to run this simulations!
+
+Notice that we use a modified version of the Walfe-Quapp potential.
+See figS1.model-rotation.py for details

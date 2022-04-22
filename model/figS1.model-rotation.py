@@ -9,10 +9,17 @@ import sys
 nbins=100
 nthetas=100
 
-def U(x,y,t):
-  c=np.cos(t)
-  s=np.sin(t)
-  return 2*(c*x-s*y)**4+2*(s*x+c*y)**4-4.0*(c*x-s*y)**2-8.0*(s*x+c*y)**2+4*(c*x-s*y)*(s*x+c*y)+1.6*(c*x-s*y)+0.2*(s*x+c*y)
+#Notice that the following is a modified Wolfe-Quapp,
+#the original U_wq differs for two coefficients:
+#U_wq = x**4 + y**4 - 2 * x**2 - 4 * y**2 + 1 * x * y + 0.3 * x + 0.1 * y
+def U(x, y, t=-0.6*np.pi/4):
+  if t == 0:
+    u = x**4 + y**4 - 2 * x**2 - 4 * y**2 + 2 * x * y + 0.8 * x + 0.1 * y
+    return 2 * (u + 9.28)
+  else:
+    c = np.cos(t)
+    s = np.sin(t) 
+    return U(c*x-s*y, s*x+c*y, t=0)
 
 int_grid=np.linspace(-3,3,num=nbins)
 deltaF=np.zeros(nthetas)
