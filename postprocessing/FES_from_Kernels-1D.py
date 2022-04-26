@@ -91,11 +91,13 @@ if args.angle:
   grid_min=-np.pi
   grid_max=np.pi
   period=2*np.pi
-  grid_bin-=1
   if calc_der:
     print(' +++ WARNING: derivative is not supported for periodic CV +++')
     calc_der=False
 cv_grid=np.linspace(grid_min,grid_max,grid_bin)
+if args.angle:
+    cv_grid=cv_grid[:-1]
+    grid_bin-=1
 
 #output files
 head='#! FIELDS '+cvname+' file.free der_'+cvname
